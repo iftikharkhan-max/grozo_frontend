@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:grozo/controllers/auth_service.dart';
 import 'signup_view.dart';
-import '../customer/customer_dashboard.dart';
 import '../manager/manager_dashboard.dart';
 import '../rider/rider_dashboard.dart';
 import '../admin/add_user_view.dart';
+import '../storefront_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -20,12 +20,13 @@ class _LoginViewState extends State<LoginView> {
   void _submit() async {
     if (_email.text.isEmpty || _pass.text.isEmpty) return;
     setState(() => _loading = true);
-    final user = await AuthService.login(_email.text, _pass.text);
+    final result = await AuthService.login(_email.text, _pass.text);
     setState(() => _loading = false);
 
     if (!mounted) return;
 
-    if (user != null) {
+    if (result['success']) {
+      final user = result['user'];
       Widget dest;
       if (user.role == 'Admin') {
         dest = const AddUserView();
@@ -34,13 +35,41 @@ class _LoginViewState extends State<LoginView> {
       } else if (user.role == 'Rider') {
         dest = RiderDashboard(user: user);
       } else {
-        dest = CustomerDashboard(user: user);
+        // Customers now land on StorefrontView
+        dest = StorefrontView(user: user);
       }
 
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => dest));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid user matching profiles')));
+      if (result['error'] == 'inactive') {
+        _showInactiveDialog(result['message']);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+      }
     }
+  }
+
+  void _showInactiveDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Account Inactive'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // You could navigate to a support page or open WhatsApp here
+            },
+            child: const Text('Contact Support'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

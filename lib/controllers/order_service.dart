@@ -83,7 +83,7 @@ class OrderService {
         Uri.parse('${Config.baseUrl}/orders/$orderId'),
       );
       return res.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
@@ -105,55 +105,58 @@ class OrderService {
         }),
       );
       return res.statusCode == 200;
-    } catch (_) {}
+    } catch (e) {
+      // ignore error
+    }
     return false;
   }
 
   static Future<List<dynamic>> fetchUsersByRole(String role) async {
     try {
-      print("DEBUG - fetchUsersByRole started for role: '$role'");
-
-      // 1. Try fetching from /admin/users endpoint
+      // 1. Try fetching from confirmed working /admin endpoint
       try {
-        print("DEBUG - Attempting step 1: GET ${Config.baseUrl}/admin/users");
+        final res = await http.get(Uri.parse('${Config.baseUrl}/admin'));
+        if (res.statusCode == 200) {
+          final List<dynamic> users = jsonDecode(res.body);
+          final filtered = users.where((u) {
+            final userRole = (u['role'] ?? u['Role'] ?? '').toString().toLowerCase().trim();
+            return userRole == role.toLowerCase().trim();
+          }).toList();
+          if (filtered.isNotEmpty) return filtered;
+        }
+      } catch (_) { }
+
+      // 2. Try fetching from /users endpoint
+      try {
+        final res = await http.get(Uri.parse('${Config.baseUrl}/users?role=$role'));
+        if (res.statusCode == 200) {
+          final List<dynamic> users = jsonDecode(res.body);
+          if (users.isNotEmpty) return users;
+        }
+      } catch (_) { }
+
+      // 3. Try fetching from /admin/users endpoint
+      try {
         final adminRes = await http.get(Uri.parse('${Config.baseUrl}/admin/users'));
-        print("DEBUG - Step 1 status: ${adminRes.statusCode}");
         if (adminRes.statusCode == 200) {
           final List<dynamic> allUsers = jsonDecode(adminRes.body);
           final filtered = allUsers.where((u) {
             final userRole = (u['role'] ?? u['Role'] ?? '').toString().toLowerCase().trim();
             return userRole == role.toLowerCase().trim();
           }).toList();
-          print("DEBUG - Step 1 filtered users count: ${filtered.length}");
           if (filtered.isNotEmpty) return filtered;
         }
-      } catch (e) {
-        print("DEBUG - Step 1 failed with error: $e");
-      }
-
-      // 2. Try fetching from /auth/users endpoint
-      try {
-        print("DEBUG - Attempting step 2: GET ${Config.baseUrl}/auth/users");
-        final response = await http.get(Uri.parse('${Config.baseUrl}/auth/users'));
-        print("DEBUG - Step 2 status: ${response.statusCode}");
-        if (response.statusCode == 200) {
-          final List<dynamic> allUsers = jsonDecode(response.body);
-          final filtered = allUsers.where((u) {
-            final userRole = (u['role'] ?? u['Role'] ?? '').toString().toLowerCase().trim();
-            return userRole == role.toLowerCase().trim();
-          }).toList();
-          print("DEBUG - Step 2 filtered users count: ${filtered.length}");
-          if (filtered.isNotEmpty) return filtered;
-        }
-      } catch (e) {
-        print("DEBUG - Step 2 failed with error: $e");
-      }
-
-    } catch (globalError) {
-      print("DEBUG - Global fetchUsersByRole error: $globalError");
+      } catch (_) { }
+    } catch (_) {
     }
-
-    print("DEBUG - fetchUsersByRole failed to find any users for: '$role'");
     return [];
+  }
+
+  static Future<Map<String, dynamic>> fetchReports(int userId, String role) async {
+    try {
+      final res = await http.get(Uri.parse('${Config.baseUrl}/orders/reports/$userId/$role'));
+      if (res.statusCode == 200) return jsonDecode(res.body);
+    } catch (_) {}
+    return {'count': 0, 'total': 0};
   }
 }

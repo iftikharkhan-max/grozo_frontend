@@ -8,7 +8,7 @@ class AuthService {
   // Changed from 'static const' to 'static final' to support dynamic configurations safely
   static String get baseUrl => Config.baseUrl;
 
-  static Future<UserModel?> login(String email, String password) async {
+  static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http.post(
         Uri.parse('${Config.baseUrl}/auth/login'),
@@ -16,12 +16,16 @@ class AuthService {
         body: jsonEncode({'email': email, 'password': password}),
       );
 
+      final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return UserModel.fromJson(jsonDecode(response.body));
+        return {'success': true, 'user': UserModel.fromJson(data)};
+      } else if (response.statusCode == 403) {
+        return {'success': false, 'error': 'inactive', 'message': data['message'] ?? 'Account inactive.'};
+      } else {
+        return {'success': false, 'error': 'failed', 'message': data['error'] ?? 'Login failed.'};
       }
-      return null;
     } catch (e) {
-      return null;
+      return {'success': false, 'error': 'network', 'message': 'Network error.'};
     }
   }
 
@@ -60,6 +64,7 @@ class AuthService {
       return 'Network error connecting to backend engine.';
     }
   }
+
   static Future<bool> signupCustomer({
     required String name,
     required String email,
@@ -81,6 +86,48 @@ class AuthService {
         }),
       );
       return response.statusCode == 201;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<bool> updateUser(int id, Map<String, dynamic> data) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${Config.baseUrl}/admin/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(data),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // NEW: Soft Delete (Deactivate) User
+  static Future<bool> deleteUser(int id) async {
+    try {
+      // 1. Notice we changed http.delete to http.put
+      // 2. Notice we added /deactivate to the end of the URL
+      final res = await http.put(
+        Uri.parse('${Config.baseUrl}/admin/$id/deactivate'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      // If the backend returns a 200 OK, the deactivation was successful
+      return res.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<bool> deleteAccount(int id) async {
+    try {
+      // Deactivating customer account
+      final response = await http.put(
+        Uri.parse('${Config.baseUrl}/admin/$id/deactivate'),
+      );
+      return response.statusCode == 200;
     } catch (e) {
       return false;
     }

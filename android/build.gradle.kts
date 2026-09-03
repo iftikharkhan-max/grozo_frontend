@@ -20,7 +20,7 @@ subprojects {
     project.evaluationDependsOn(":app")
 
     plugins.withId("com.android.library") {
-        extensions.configure<com.android.build.gradle.LibraryExtension> {
+        extensions.configure<com.android.build.api.dsl.LibraryExtension> {
             if (compileSdk == null) {
                 compileSdk = 34
             }

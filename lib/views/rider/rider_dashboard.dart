@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
 import '../../controllers/location_service.dart';
-import '../auth/login_view.dart'; // Required for signout
+import '../storefront_view.dart';
 
 class RiderDashboard extends StatefulWidget {
   final UserModel user;
@@ -13,163 +13,216 @@ class RiderDashboard extends StatefulWidget {
 
 class _RiderDashboardState extends State<RiderDashboard> {
   List<dynamic> _activeAssignments = [];
+  Map<String, dynamic> _report = {'count': 0, 'total': 0};
   final LocationService _loc = LocationService();
   final _amountController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
     _loadManifest();
+    _loadReports();
   }
 
   void _loadManifest() async {
     final data = await OrderService.fetchOrdersByRole('rider', widget.user.id);
-    setState(() => _activeAssignments = data);
+    if (mounted) setState(() => _activeAssignments = data);
+  }
+
+  void _loadReports() async {
+    final data = await OrderService.fetchReports(widget.user.id, 'rider');
+    if (mounted) setState(() => _report = data);
   }
 
   void _logout() {
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginView()), (route) => false);
+    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const StorefrontView()), (route) => false);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-          title: const Text('Rider Delivery Manifest'),
-          actions: [
-            IconButton(icon: const Icon(Icons.refresh), onPressed: _loadManifest),
-            IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
-          ]
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          _loadManifest();
-        },
-        child: _activeAssignments.isEmpty
-            ? const SingleChildScrollView(
-                physics: AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: 400,
-                  child: Center(child: Text("No active deliveries assigned.")),
-                ),
-              )
-            : ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _activeAssignments.length,
-                itemBuilder: (_, idx) {
-                  final o = _activeAssignments[idx];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                                child: Icon(Icons.person, color: theme.colorScheme.primary),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+            title: const Text('Rider Workspace'),
+            bottom: const TabBar(
+              tabs: [Tab(text: 'Deliveries'), Tab(text: 'My Reports')],
+            ),
+            actions: [
+              IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
+              IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
+            ]
+        ),
+        body: TabBarView(
+          children: [
+            // Tab 1: Deliveries
+            RefreshIndicator(
+              onRefresh: () async => _refresh(),
+              child: _activeAssignments.isEmpty
+                  ? const SingleChildScrollView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: 400,
+                        child: Center(child: Text("No active deliveries assigned.")),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _activeAssignments.length,
+                      itemBuilder: (_, idx) {
+                        final o = _activeAssignments[idx];
+                        // Extract date from assigned_at or created_at
+                        String dateStr = "N/A";
+                        final rawDate = o['assigned_at'] ?? o['created_at'];
+                        if (rawDate != null) {
+                          try {
+                            final dt = DateTime.parse(rawDate);
+                            dateStr = "${dt.day}/${dt.month}/${dt.year}";
+                          } catch (_) {}
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    Text(
-                                      o['customer_name'] ?? 'Unknown Customer',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                    CircleAvatar(
+                                      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                      child: Icon(Icons.person, color: theme.colorScheme.primary),
                                     ),
-                                    Text(
-                                      'Mob: ${o['customer_mobile'] ?? 'N/A'}',
-                                      style: TextStyle(color: Colors.grey[600]),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            o['customer_name'] ?? 'Unknown Customer',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                          ),
+                                          Text('Assigned: $dateStr', style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        o['status'],
+                                        style: TextStyle(
+                                          color: theme.colorScheme.secondary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  o['status'],
-                                  style: TextStyle(
-                                    color: theme.colorScheme.secondary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                const Divider(height: 24),
+                                Text('Destination: ${o['destination'] ?? 'Not Provided'}'),
+                                const SizedBox(height: 4),
+                                Text('Amount to Collect: PKR ${o['amount']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                                const SizedBox(height: 16),
+                                if (o['status'] == 'Dispatched')
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        await OrderService.updateStatus(o['id'], 'In the way');
+                                        _loc.startTrackingRider(o['id'], widget.user.id);
+                                        _refresh();
+                                      },
+                                      icon: const Icon(Icons.directions_bike),
+                                      label: const Text('START TRANSIT'),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.location_on_outlined, size: 20, color: Colors.grey),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Destination: ${o['destination'] ?? 'Not Provided'}',
-                                  style: theme.textTheme.bodyLarge,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          if (o['status'] == 'Dispatched')
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  await OrderService.updateStatus(o['id'], 'In the way');
-                                  _loc.startTrackingRider(o['id'], widget.user.id);
-                                  _loadManifest();
-                                },
-                                icon: const Icon(Icons.directions_bike),
-                                label: const Text('START TRANSIT'),
-                              ),
+                                if (o['status'] == 'In the way') ...[
+                                  TextField(
+                                    controller: _amountController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Final Cash Collected (PKR)',
+                                      prefixText: 'PKR ',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        if (_amountController.text.isNotEmpty) {
+                                          _loc.stopTracking();
+                                          await OrderService.updateStatus(o['id'], 'Delivered', amount: double.parse(_amountController.text));
+                                          _amountController.clear();
+                                          _refresh();
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: theme.colorScheme.secondary,
+                                      ),
+                                      icon: const Icon(Icons.check_circle_outline),
+                                      label: const Text('CONFIRM DELIVERY'),
+                                    ),
+                                  )
+                                ]
+                              ],
                             ),
-                          if (o['status'] == 'In the way') ...[
-                            TextField(
-                              controller: _amountController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Cash to Collect (PKR)',
-                                prefixText: 'PKR ',
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (_amountController.text.isNotEmpty) {
-                                    _loc.stopTracking();
-                                    await OrderService.updateStatus(o['id'], 'Delivered', amount: double.parse(_amountController.text));
-                                    _amountController.clear();
-                                    _loadManifest();
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.secondary,
-                                ),
-                                icon: const Icon(Icons.check_circle_outline),
-                                label: const Text('CONFIRM DELIVERY'),
-                              ),
-                            )
-                          ]
-                        ],
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+            ),
+            // Tab 2: Reports
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  const Text('Earnings & Performance', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 30),
+                  _buildReportCard('Finalized Orders', _report['count'].toString(), Icons.done_all, Colors.green),
+                  const SizedBox(height: 20),
+                  _buildReportCard('Total Cash Handled', 'PKR ${_report['total']}', Icons.payments, Colors.orange),
+                ],
               ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportCard(String title, String val, IconData icon, Color color) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: Icon(icon, color: color)),
+            const SizedBox(width: 20),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.grey)),
+                Text(val, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }

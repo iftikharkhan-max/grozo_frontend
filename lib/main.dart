@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'views/storefront_view.dart';
 import 'views/auth/login_view.dart';
+import 'views/auth/signup_view.dart';
 
 void main() {
   runApp(const GrozoMVCApp());
@@ -10,10 +12,9 @@ class GrozoMVCApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. DEFINE YOUR LOGO COLORS HERE
-    const Color brandPrimary = Color(0xFF045826);   // Main logo color
-    const Color brandAccent = Color(0xFFD66006);    // Secondary logo color
-    const Color brandBackground = Color(0xFFF4F6F7);// App background canvas
+    const Color brandPrimary = Color(0xFF045826);
+    const Color brandAccent = Color(0xFFD66006);
+    const Color brandBackground = Color(0xFFF4F6F7);
     const Color inputFillColor = Colors.white;
 
     return MaterialApp(
@@ -30,11 +31,10 @@ class GrozoMVCApp extends StatelessWidget {
           surface: brandBackground,
         ),
 
-        // FIXES THE INVISIBLE TAB TEXT CONTRAST ISSUE
         tabBarTheme: const TabBarThemeData(
-          labelColor: Colors.white,            // Active tab text
-          unselectedLabelColor: Colors.white60, // Inactive tab text
-          indicatorColor: brandAccent,          // Match accent color
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          indicatorColor: brandAccent,
           indicatorSize: TabBarIndicatorSize.tab,
         ),
 
@@ -78,12 +78,19 @@ class GrozoMVCApp extends StatelessWidget {
         ),
       ),
 
+      // Set initial widget with splash delay
       home: const LoginScreenWrapper(),
+
+      // Define named routes to easily navigate between screens
+      routes: {
+        '/storefront': (context) => const StorefrontView(),
+        '/login': (context) => const LoginView(),
+        '/signup': (context) => const SignupView(),
+      },
     );
   }
 }
 
-// 2. STATEFUL SPLASH SCREEN HANDLING YOUR LOGO ENTRANCE
 class LoginScreenWrapper extends StatefulWidget {
   const LoginScreenWrapper({super.key});
 
@@ -97,7 +104,6 @@ class _LoginScreenWrapperState extends State<LoginScreenWrapper> {
   @override
   void initState() {
     super.initState();
-    // Hold splash screen for 2.5 seconds, then load login view
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
         setState(() {
@@ -133,6 +139,8 @@ class _LoginScreenWrapperState extends State<LoginScreenWrapper> {
       );
     }
 
-    return const LoginView();
+    // Change this return widget to StorefrontView() if you want the home screen to show after splash,
+    // or keep LoginView() if users must sign in first.
+    return const StorefrontView();
   }
 }

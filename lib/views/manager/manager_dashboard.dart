@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
-import '../auth/login_view.dart'; // Required for Sign-out
+import '../storefront_view.dart';
 
 class ManagerDashboard extends StatefulWidget {
   final UserModel user;
@@ -14,8 +14,8 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   List<dynamic> _pool = [];
   List<dynamic> _myWorkspace = [];
   List<dynamic> _riders = [];
-  List<dynamic> _customers = []; // Added to hold fetched customer accounts
-  // Use dynamic to handle potential ID type mismatches (String vs int)
+  List<dynamic> _customers = []; 
+  Map<String, dynamic> _report = {'count': 0, 'total': 0};
   Map<dynamic, dynamic> _selectedRiders = {};
 
   @override
@@ -27,46 +27,31 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   void _refreshAll() async {
     final poolData = await OrderService.fetchGlobalPool();
     final workspaceData = await OrderService.fetchOrdersByRole('manager', widget.user.id);
+    final reportData = await OrderService.fetchReports(widget.user.id, 'manager');
 
-    // --- DEBUG ENABLED RIDER FETCH ---
-    // We try multiple casing variants to ensure we catch whatever the backend database requires
     var ridersData = await OrderService.fetchUsersByRole('rider');
-    if (ridersData == null || ridersData.isEmpty) {
-      debugPrint("DEBUG - No riders found with lowercase 'rider'. Trying capitalized 'Rider'...");
-      ridersData = await OrderService.fetchUsersByRole('Rider');
-    }
-    if (ridersData == null || ridersData.isEmpty) {
-      debugPrint("DEBUG - No riders found with 'Rider'. Trying uppercase 'RIDER'...");
-      ridersData = await OrderService.fetchUsersByRole('RIDER');
-    }
-
-    // Print the exact runtime response to your terminal console
-    debugPrint("==================================================");
-    debugPrint("DEBUG - FETCHED RIDERS DATA: $ridersData");
-    debugPrint("==================================================");
-
-    // Fetch customers to enable the name selection dropdown during manual order entry
+    if (ridersData.isEmpty) ridersData = await OrderService.fetchUsersByRole('Rider');
+    
     var customersData = await OrderService.fetchUsersByRole('customer');
-    if (customersData == null || customersData.isEmpty) {
-      customersData = await OrderService.fetchUsersByRole('Customer');
-    }
+    if (customersData.isEmpty) customersData = await OrderService.fetchUsersByRole('Customer');
 
     if (mounted) {
       setState(() {
         _pool = poolData;
         _myWorkspace = workspaceData;
-        _riders = ridersData ?? [];
-        _customers = customersData ?? [];
+        _riders = ridersData;
+        _customers = customersData;
+        _report = reportData;
       });
     }
   }
 
   void _logout() {
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginView()), (route) => false);
+    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const StorefrontView()), (route) => false);
   }
 
   void _createOnBehalfDialog() {
-    dynamic selectedCustomerId; // Holds the selected customer's ID
+    dynamic selectedCustomerId;
     final address = TextEditingController();
     final amount = TextEditingController();
     final item = TextEditingController();
@@ -75,12 +60,11 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Phone Call Order Creation'),
+            title: const Text('Phone Order Creation'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Searchable/Clean Customer Selection Dropdown
                   if (_customers.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -88,10 +72,10 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                     )
                   else
                     DropdownButtonFormField<dynamic>(
-                      value: selectedCustomerId,
+                      initialValue: selectedCustomerId,
                       hint: const Text('Select Customer'),
                       items: _customers.map<DropdownMenuItem<dynamic>>((c) {
-                        final name = c['name'] ?? c['username'] ?? 'Unknown';
+                        final name = c['name'] ?? 'Unknown';
                         final id = c['id'];
                         return DropdownMenuItem<dynamic>(
                           value: id,
@@ -103,31 +87,20 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                           selectedCustomerId = v;
                         });
                       },
-                      decoration: const InputDecoration(
-                        labelText: 'Customer Account',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
+                      decoration: const InputDecoration(labelText: 'Customer Account'),
                     ),
                   const SizedBox(height: 12),
-                  TextField(controller: item, decoration: const InputDecoration(labelText: 'Item Name / Quantities')),
+                  TextField(controller: item, decoration: const InputDecoration(labelText: 'Item Name')),
                   TextField(controller: address, decoration: const InputDecoration(labelText: 'Delivery Destination')),
                   TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Order Amount (PKR)')),
                 ],
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel', style: TextStyle(color: Colors.red)),
-              ),
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel', style: TextStyle(color: Colors.red))),
               ElevatedButton(
                 onPressed: () async {
-                  if (selectedCustomerId == null || item.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please select a customer and enter an item details!'))
-                    );
-                    return;
-                  }
+                  if (selectedCustomerId == null || item.text.isEmpty) return;
                   await OrderService.createOrder(
                       customerId: int.parse(selectedCustomerId.toString()),
                       address: address.text,
@@ -138,7 +111,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                   if (mounted) Navigator.pop(dialogContext);
                   _refreshAll();
                 },
-                child: const Text('Save ("Order Placed")'),
+                child: const Text('Create Order'),
               )
             ],
           ),
@@ -150,14 +123,13 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Manager Workspace'),
-          bottom: TabBar(
-            tabs: const [Tab(text: 'Global Pool'), Tab(text: 'My Workspace')],
-            indicatorColor: theme.colorScheme.secondary,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          bottom: const TabBar(
+            tabs: [Tab(text: 'Pool'), Tab(text: 'My Tasks'), Tab(text: 'Reports')],
+            labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           actions: [
             IconButton(icon: const Icon(Icons.add_call), onPressed: _createOnBehalfDialog),
@@ -167,33 +139,18 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         ),
         body: TabBarView(
           children: [
+            // Tab 1: Global Pool
             RefreshIndicator(
               onRefresh: () async => _refreshAll(),
               child: _pool.isEmpty
-                  ? const SingleChildScrollView(
-                physics: AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: 400,
-                  child: Center(child: Text("Global pool is currently empty.")),
-                ),
-              )
+                  ? const Center(child: Text("Global pool is empty."))
                   : ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: _pool.length,
                 itemBuilder: (_, idx) {
                   final o = _pool[idx];
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: ListTile(
-                      leading: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.inventory_2),
-                        ),
-                      ),
                       title: Text('Ref: ${o['tracking_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text('Dest: ${o['destination'] ?? 'N/A'}'),
                       trailing: ElevatedButton(
@@ -201,10 +158,6 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                           await OrderService.claimOrder(o['id'], widget.user.id);
                           _refreshAll();
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
                         child: const Text('Claim'),
                       ),
                     ),
@@ -212,25 +165,17 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                 },
               ),
             ),
+            // Tab 2: My Workspace
             RefreshIndicator(
               onRefresh: () async => _refreshAll(),
               child: _myWorkspace.isEmpty
-                  ? const SingleChildScrollView(
-                physics: AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: 400,
-                  child: Center(child: Text("You have no active orders in your workspace.")),
-                ),
-              )
+                  ? const Center(child: Text("No active orders in workspace."))
                   : ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: _myWorkspace.length,
                 itemBuilder: (_, idx) {
                   final o = _myWorkspace[idx];
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -239,78 +184,37 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Order: ${o['tracking_number']}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  o['status'] ?? 'Unknown',
-                                  style: TextStyle(
-                                    color: theme.colorScheme.secondary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
+                              Text('Order: ${o['tracking_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(o['status'] ?? 'Unknown', style: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold)),
                             ],
                           ),
-                          const Divider(height: 24),
-                          Text('Destination: ${o['destination']}', style: theme.textTheme.bodyLarge),
-                          const SizedBox(height: 4),
-                          Text('Amount: PKR ${o['amount']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 16),
-                          if (['order placed', 'with manager', 'claimed'].contains((o['status'] ?? '').toString().toLowerCase().trim())) ...[
+                          const Divider(),
+                          Text('Dest: ${o['destination']}'),
+                          Text('Amt: PKR ${o['amount']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 10),
+                          if (['order placed', 'with manager', 'claimed'].contains(o['status'].toString().toLowerCase())) ...[
                             if (_riders.isEmpty)
                               const Text("No riders available.", style: TextStyle(color: Colors.red))
                             else
                               DropdownButtonFormField<dynamic>(
-                                value: _selectedRiders[o['id']],
+                                initialValue: _selectedRiders[o['id']],
                                 items: _riders.map<DropdownMenuItem<dynamic>>((r) {
-                                  // Robust structural key fallbacks for database parameters
-                                  final riderName = r['name'] ?? r['username'] ?? 'Unknown';
-                                  final riderMobile = r['mobile'] ?? r['phone'] ?? r['phone_number'] ?? 'No Number';
-                                  return DropdownMenuItem<dynamic>(
-                                      value: r['id'],
-                                      child: Text("$riderName ($riderMobile)")
-                                  );
+                                  return DropdownMenuItem<dynamic>(value: r['id'], child: Text("${r['name']} (${r['mobile']})"));
                                 }).toList(),
-                                onChanged: (v) {
-                                  setState(() {
-                                    _selectedRiders[o['id']] = v;
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  labelText: 'Assign Rider',
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
+                                onChanged: (v) => setState(() => _selectedRiders[o['id']] = v),
+                                decoration: const InputDecoration(labelText: 'Assign Rider'),
                               ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
                                 onPressed: _riders.isEmpty ? null : () async {
-                                  final assignedRiderId = _selectedRiders[o['id']];
-                                  if (assignedRiderId != null) {
-                                    final success = await OrderService.dispatchToRider(o['id'], assignedRiderId);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(success ? 'Order Dispatched!' : 'Dispatch failed.')),
-                                      );
-                                    }
+                                  if (_selectedRiders[o['id']] != null) {
+                                    await OrderService.dispatchToRider(o['id'], _selectedRiders[o['id']]);
                                     _refreshAll();
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Please select a rider first!'))
-                                    );
                                   }
                                 },
-                                child: const Text('DISPATCH ORDER'),
+                                child: const Text('DISPATCH'),
                               ),
                             )
                           ]
@@ -321,8 +225,31 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                 },
               ),
             ),
+            // Tab 3: Reports
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  const Text('Workspace Performance', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 30),
+                  _buildReportItem('Orders Completed', _report['count'].toString(), Icons.check_circle, Colors.indigo),
+                  const SizedBox(height: 20),
+                  _buildReportItem('Volume Handled', 'PKR ${_report['total']}', Icons.trending_up, Colors.green),
+                ],
+              ),
+            )
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReportItem(String label, String value, IconData icon, Color color) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon, color: color, size: 30),
+        title: Text(label, style: const TextStyle(color: Colors.grey)),
+        subtitle: Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       ),
     );
   }
