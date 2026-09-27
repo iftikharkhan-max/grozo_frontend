@@ -21,7 +21,7 @@ Widget homeFor(UserModel? user) {
 
 /// Clears the navigation stack and goes to the store home (used after logout).
 void goToStoreHome(BuildContext context) {
-  Navigator.of(context).pushAndRemoveUntil(
+  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
     MaterialPageRoute(builder: (_) => const MainShell()),
     (route) => false,
   );

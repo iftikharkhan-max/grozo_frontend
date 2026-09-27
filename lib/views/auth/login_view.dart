@@ -43,7 +43,7 @@ class _LoginViewState extends State<LoginView> {
       if (user.isCustomer && widget.returnOnSuccess) {
         Navigator.pop(context, true);
       } else {
-        Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => homeFor(user)), (route) => false);
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => homeFor(user)), (route) => false);
       }
     } else if (result.status == 403) {
       _showInactiveDialog(result.data?['message'] ?? '');

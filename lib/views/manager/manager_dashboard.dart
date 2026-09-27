@@ -3,6 +3,7 @@ import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
 import '../common/more_menu.dart';
 import '../staff/order_info.dart';
+import 'phone_order_view.dart';
 
 class ManagerDashboard extends StatefulWidget {
   final UserModel user;
@@ -15,7 +16,6 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   List<dynamic> _pool = [];
   List<dynamic> _myWorkspace = [];
   List<dynamic> _riders = [];
-  List<dynamic> _customers = []; 
   Map<String, dynamic> _report = {'count': 0, 'total': 0};
   Map<dynamic, dynamic> _selectedRiders = {};
 
@@ -33,15 +33,11 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     var ridersData = await OrderService.fetchUsersByRole('rider');
     if (ridersData.isEmpty) ridersData = await OrderService.fetchUsersByRole('Rider');
     
-    var customersData = await OrderService.fetchUsersByRole('customer');
-    if (customersData.isEmpty) customersData = await OrderService.fetchUsersByRole('Customer');
-
     if (mounted) {
       setState(() {
         _pool = poolData;
         _myWorkspace = workspaceData;
         _riders = ridersData;
-        _customers = customersData;
         _report = reportData;
       });
     }
@@ -49,73 +45,9 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
 
   void _logout() => confirmLogout(context);
 
-  void _createOnBehalfDialog() {
-    dynamic selectedCustomerId;
-    final address = TextEditingController();
-    final amount = TextEditingController();
-    final item = TextEditingController();
-
-    showDialog(
-        context: context,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Phone Order Creation'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_customers.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Text("Loading customers...", style: TextStyle(color: Colors.grey)),
-                    )
-                  else
-                    DropdownButtonFormField<dynamic>(
-                      initialValue: selectedCustomerId,
-                      hint: const Text('Select Customer'),
-                      items: _customers.map<DropdownMenuItem<dynamic>>((c) {
-                        final name = c['name'] ?? 'Unknown';
-                        final id = c['id'];
-                        return DropdownMenuItem<dynamic>(
-                          value: id,
-                          child: Text("$name (ID: $id)"),
-                        );
-                      }).toList(),
-                      onChanged: (v) {
-                        setDialogState(() {
-                          selectedCustomerId = v;
-                        });
-                      },
-                      decoration: const InputDecoration(labelText: 'Customer Account'),
-                    ),
-                  const SizedBox(height: 12),
-                  TextField(controller: item, decoration: const InputDecoration(labelText: 'Item Name')),
-                  TextField(controller: address, decoration: const InputDecoration(labelText: 'Delivery Destination')),
-                  TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Order Amount (PKR)')),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel', style: TextStyle(color: Colors.red))),
-              ElevatedButton(
-                onPressed: () async {
-                  if (selectedCustomerId == null || item.text.isEmpty) return;
-                  await OrderService.createOrder(
-                      customerId: int.parse(selectedCustomerId.toString()),
-                      address: address.text,
-                      amount: double.tryParse(amount.text) ?? 0.0,
-                      items: [{'name': item.text, 'qty': 1}],
-                      managerId: widget.user.id
-                  );
-                  if (mounted) Navigator.pop(dialogContext);
-                  _refreshAll();
-                },
-                child: const Text('Create Order'),
-              )
-            ],
-          ),
-        )
-    );
+  Future<void> _openPhoneOrder() async {
+    final created = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const PhoneOrderView()));
+    if (created == true) _refreshAll();
   }
 
   @override
@@ -131,7 +63,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
             labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           actions: [
-            IconButton(icon: const Icon(Icons.add_call), onPressed: _createOnBehalfDialog),
+            IconButton(tooltip: 'New phone order', icon: const Icon(Icons.add_call), onPressed: _openPhoneOrder),
             IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshAll),
             IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
           ],
@@ -150,7 +82,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: ExpansionTile(
-                      title: Text('Ref: ${o['tracking_number']}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
+                      title: Text('Ref: ${o['tracking_number']}${o['order_source'] == 'phone' ? '  •  📞 PHONE' : ''}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text('${o['customer_name'] ?? ''} • ${o['destination'] ?? 'N/A'}', maxLines: 1, overflow: TextOverflow.ellipsis),
                       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

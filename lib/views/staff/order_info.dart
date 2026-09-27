@@ -17,6 +17,13 @@ class StaffOrderInfo extends StatelessWidget {
     final destination = lat != null && lng != null ? '$lat,$lng' : (o.destination ?? '');
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (o.isPhoneOrder)
+        Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+          child: const Text('📞 PHONE ORDER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue)),
+        ),
       _line(Icons.person_outline, '${o.contactName ?? raw['customer_name'] ?? 'Customer'}'),
       if (phone.isNotEmpty)
         InkWell(
@@ -30,14 +37,14 @@ class StaffOrderInfo extends StatelessWidget {
                 mode: LaunchMode.externalApplication),
         child: _line(Icons.location_on_outlined, o.destination ?? 'No address', color: destination.isEmpty ? null : Colors.blue),
       ),
-      if (o.isMarketRequest)
+      if (o.extraItemLines.isNotEmpty)
         Container(
           width: double.infinity,
           margin: const EdgeInsets.symmetric(vertical: 6),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('MARKET SHOPPING – buy from market:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const Text('BUY FROM MARKET (price at delivery):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             const SizedBox(height: 4),
             Text(o.requestText ?? ''),
           ]),

@@ -35,9 +35,9 @@ class OrderConfirmationView extends StatelessWidget {
                 Text(context.tr('deliver_to'), style: const TextStyle(color: Colors.black54)),
                 Text(order.destination ?? ''),
                 const Divider(),
-                if (order.isMarketRequest) ...[
-                  Text(context.tr('your_list'), style: const TextStyle(color: Colors.black54)),
-                  Text(order.requestText ?? ''),
+                if (order.extraItemLines.isNotEmpty) ...[
+                  Text(context.tr('custom_items_section'), style: const TextStyle(color: Colors.black54)),
+                  for (final line in order.extraItemLines) Text('• $line'),
                 ],
                 for (final l in order.items)
                   Padding(

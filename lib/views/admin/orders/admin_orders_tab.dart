@@ -172,7 +172,7 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
         onTap: () => _open(o),
         title: Row(children: [
           Expanded(
-            child: Text('${o['tracking_number']}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
+            child: Text('${o['tracking_number']}${o['order_source'] == 'phone' ? '  •  📞 PHONE' : ''}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
                 style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           Text(status, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),

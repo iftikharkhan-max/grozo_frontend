@@ -4,13 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
-import '../../models/product.dart';
 import '../../services/api.dart';
 import '../../state/app_state.dart';
 import '../../utils/brand.dart';
-import '../cart/cart_view.dart';
 import '../common/product_widgets.dart';
 import 'my_orders_view.dart';
+import 'reorder.dart';
 
 class OrderDetailView extends StatefulWidget {
   final int orderId;
@@ -87,50 +86,23 @@ class _OrderDetailViewState extends State<OrderDetailView> {
     _load();
   }
 
-  /// Adds the order's items to the cart with today's prices and availability.
-  Future<void> _reorder() async {
-    final o = _order!;
-    final ids = o.items.map((l) => l.productId).whereType<int>().toList();
-    if (ids.isEmpty) return;
-    setState(() => _busy = true);
-    final results = await Future.wait(ids.map((id) => Api.get('/products/$id')));
-    if (!mounted) return;
-    setState(() => _busy = false);
-
-    final state = context.read<AppState>();
-    var added = 0;
-    final missing = <String>[];
-    for (final l in o.items) {
-      final i = ids.indexOf(l.productId ?? -1);
-      final res = i >= 0 ? results[i] : null;
-      if (res == null || !res.ok) {
-        missing.add(l.displayName(context.lang));
-        continue;
-      }
-      final p = Product.fromJson(Map<String, dynamic>.from(res.data));
-      final qty = p.maxQty == null ? l.qty : l.qty.clamp(0, p.maxQty!);
-      if (!p.available || qty == 0) {
-        missing.add(p.displayName(context.lang));
-        continue;
-      }
-      // Top the cart up to the ordered quantity (it may already hold some).
-      final toAdd = qty - state.qtyInCart(p.id);
-      if (toAdd > 0) state.addToCart(p, qty: toAdd);
-      added++;
-    }
-    if (missing.isNotEmpty) {
-      _toast(context.trf('reorder_some_missing', {'names': missing.join(', ')}));
-    } else {
-      _toast(context.trf('reorder_done', {'n': added}));
-    }
-    if (added > 0 && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView()));
-  }
-
   @override
   Widget build(BuildContext context) {
     final o = _order;
     return Scaffold(
-      appBar: AppBar(title: Text(o == null ? context.tr('order') : '${context.tr('order')} ${o.number}')),
+      appBar: AppBar(
+        title: Text(o == null ? context.tr('order') : '${context.tr('order')} ${o.number}'),
+        actions: [
+          if (o != null)
+            IconButton(
+              tooltip: context.tr(o.isFavorite ? 'unstar_order' : 'star_order'),
+              icon: Icon(o.isFavorite ? Icons.star : Icons.star_border, color: o.isFavorite ? Colors.amber.shade700 : null),
+              onPressed: () async {
+                if (await setOrderFavorite(context, o, !o.isFavorite)) _load();
+              },
+            ),
+        ],
+      ),
       body: o == null
           ? Center(
               child: _errorCode == null
@@ -162,9 +134,9 @@ class _OrderDetailViewState extends State<OrderDetailView> {
           icon: const Icon(Icons.check),
           label: Text(context.tr('mark_received')),
         ),
-      if (!o.isActive && o.items.any((l) => l.productId != null))
+      if (!o.isActive && (o.items.any((l) => l.productId != null) || o.extraItemLines.isNotEmpty))
         ElevatedButton.icon(
-          onPressed: _busy ? null : _reorder,
+          onPressed: _busy ? null : () => reorder(context, o),
           icon: const Icon(Icons.replay),
           label: Text(context.tr('reorder')),
         ),
@@ -285,9 +257,9 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(context.tr('items'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 6),
-          if (o.isMarketRequest) ...[
-            Text(context.tr('your_list'), style: const TextStyle(color: Colors.black54)),
-            Text(o.requestText ?? ''),
+          if (o.extraItemLines.isNotEmpty) ...[
+            Text(context.tr('custom_items_section'), style: const TextStyle(color: brandAccent, fontWeight: FontWeight.w600)),
+            for (final line in o.extraItemLines) Text('• $line'),
             const SizedBox(height: 6),
           ],
           for (final l in o.items)

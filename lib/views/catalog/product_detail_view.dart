@@ -35,7 +35,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       appBar: AppBar(
         title: Text(_p.displayName(lang)),
         actions: [
-          FavoriteButton(_p.id, idleColor: Colors.white, size: 26),
+          FavoriteButton(_p.id, idleColor: brandPrimary, size: 26),
           IconButton(
             tooltip: context.tr('cart'),
             icon: const Icon(Icons.shopping_cart_outlined),

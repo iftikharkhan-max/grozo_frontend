@@ -9,12 +9,12 @@ import '../account/addresses_view.dart';
 import '../common/product_widgets.dart';
 import 'order_confirmation_view.dart';
 
-/// Checkout for the cart, or for a Market Shopping list when [requestText] is set.
+/// Checkout for the cart: catalogue products plus any extra market items
+/// ("not in the list"), which are priced at delivery.
 /// All amounts come from the server's quote; the order is only placed when the
 /// customer presses Confirm, and the server re-checks the total at that moment.
 class CheckoutView extends StatefulWidget {
-  final String? requestText;
-  const CheckoutView({super.key, this.requestText});
+  const CheckoutView({super.key});
 
   @override
   State<CheckoutView> createState() => _CheckoutViewState();
@@ -32,7 +32,13 @@ class _CheckoutViewState extends State<CheckoutView> {
   String? _banner; // explains why the customer should review (prices/cart changed)
   bool _placing = false;
 
-  bool get _isMarket => widget.requestText != null;
+  /// Extra market items, written as the shopping list sent with the order.
+  String get _extraText => context.read<AppState>().customItemsText;
+
+  /// Only extra items, no catalogue products.
+  bool get _isMarket => context.read<AppState>().cartLines.isEmpty;
+
+  int? get _branchId => context.read<AppState>().selectedBranch?['id'] as int?;
 
   @override
   void initState() {
@@ -71,10 +77,11 @@ class _CheckoutViewState extends State<CheckoutView> {
   Future<void> _requote() async {
     setState(() => _quoteError = null);
     final res = await Api.post('/orders/quote', {
-      'items': _isMarket ? [] : _cartItems(),
+      'items': _cartItems(),
+      'requestText': _extraText,
+      'branchId': _branchId,
       'addressId': _address?['id'],
       'deliveryMethod': 'delivery',
-      'orderType': _isMarket ? 'market_request' : 'catalog',
     });
     if (!mounted) return;
     setState(() {
@@ -149,9 +156,9 @@ class _CheckoutViewState extends State<CheckoutView> {
     setState(() => _placing = true);
     final state = context.read<AppState>();
     final res = await Api.post('/orders', {
-      'items': _isMarket ? [] : _cartItems(),
-      'orderType': _isMarket ? 'market_request' : 'catalog',
-      'requestText': widget.requestText,
+      'items': _cartItems(),
+      'requestText': _extraText,
+      'branchId': _branchId,
       'addressId': _address!['id'],
       'deliveryMethod': 'delivery',
       'paymentMethod': 'COD',
@@ -168,7 +175,7 @@ class _CheckoutViewState extends State<CheckoutView> {
       if ((state.user?.mobile ?? '').isEmpty) {
         Api.put('/auth/me', {'mobile': _mobile.text.trim()}).then((_) => state.refreshProfile());
       }
-      if (!_isMarket) state.clearCart();
+      state.clearCart();
       state.ordersChanged();
       final order = Order.fromJson(Map<String, dynamic>.from(res.data['order']));
       Navigator.of(context).pushAndRemoveUntil(
@@ -353,7 +360,7 @@ class _CheckoutViewState extends State<CheckoutView> {
     return _section(
       context.tr('order_summary'),
       Column(children: [
-        if (_isMarket)
+        if (_extraText.isNotEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
@@ -362,7 +369,8 @@ class _CheckoutViewState extends State<CheckoutView> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(context.tr('your_list'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text(widget.requestText!),
+              Text(_extraText),
+              Text(context.tr('price_at_delivery'), style: const TextStyle(fontSize: 12, color: Colors.black54)),
             ]),
           ),
         for (final l in lines)
@@ -384,7 +392,7 @@ class _CheckoutViewState extends State<CheckoutView> {
         row(context.tr('delivery_charge'), delivery == null ? context.tr('to_be_confirmed') : 'Rs. ${money(delivery)}'),
         const Divider(),
         row(context.tr('total_payable'), 'Rs. ${money(q['total'] as num)}', bold: true, color: brandPrimary),
-        if (_isMarket || delivery == null)
+        if (_extraText.isNotEmpty || delivery == null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(context.tr('final_bill_note'), style: const TextStyle(fontSize: 12, color: Colors.black54)),

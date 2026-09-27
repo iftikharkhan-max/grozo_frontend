@@ -1,26 +1,37 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/strings.dart';
 import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../account/account_view.dart';
-import '../cart/cart_view.dart';
 import '../common/login_required.dart';
 import '../favorites/favorites_view.dart';
 import '../home/home_view.dart';
 import '../orders/my_orders_view.dart';
+import 'grozo_header.dart';
+import 'order_options.dart';
 
-/// Customer app frame: Home, My Orders, [Order Now], Favorites, My Account.
+/// Customer app frame. The Grozo header and the footer stay on screen on every
+/// page: each footer tab has its own navigator, and pages open inside it.
 class MainShell extends StatefulWidget {
   final int initialTab;
   const MainShell({super.key, this.initialTab = 0});
 
-  /// Lets any screen switch the footer tab (e.g. "My Favorites" on the home page).
-  static void switchTab(BuildContext context, int index) =>
-      context.findAncestorStateOfType<_MainShellState>()?.select(index);
-
   static const home = 0, orders = 1, favorites = 2, account = 3;
+
+  static _MainShellState? _of(BuildContext context) => context.findAncestorStateOfType<_MainShellState>();
+
+  /// Switches the footer tab (e.g. "My Favorites" on the home page).
+  static void switchTab(BuildContext context, int index) => _of(context)?.select(index);
+
+  /// Opens [page] in the current tab, below the header and above the footer.
+  static Future<T?> push<T>(BuildContext context, Widget page) {
+    final shell = _of(context);
+    if (shell == null) return Navigator.push<T>(context, MaterialPageRoute(builder: (_) => page));
+    return shell._push<T>(page);
+  }
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -28,13 +39,14 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   late int _index = widget.initialTab;
+  final _navKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
   Timer? _unreadTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Keep the bell badge fresh while the app is open.
+    // Keep the notification badge fresh while the app is open.
     _unreadTimer = Timer.periodic(const Duration(seconds: 60), (_) => context.read<AppState>().refreshUnread());
   }
 
@@ -50,7 +62,33 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  void select(int i) => setState(() => _index = i);
+  void select(int i) {
+    if (i == _index) {
+      // Tapping the current tab again returns to its first page.
+      _navKeys[i].currentState?.popUntil((r) => r.isFirst);
+    } else {
+      setState(() => _index = i);
+    }
+  }
+
+  Future<T?> _push<T>(Widget page) =>
+      _navKeys[_index].currentState!.push<T>(MaterialPageRoute(builder: (_) => page));
+
+  void _handleBack() {
+    final nav = _navKeys[_index].currentState;
+    if (nav != null && nav.canPop()) {
+      nav.pop();
+    } else if (_index != MainShell.home) {
+      select(MainShell.home);
+    } else {
+      SystemNavigator.pop();
+    }
+  }
+
+  Widget _tab(int i, Widget root) => Navigator(
+        key: _navKeys[i],
+        onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => root),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -72,16 +110,44 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       const AccountView(),
     ];
 
+    // Pages inside the frame get compact white title bars under the green header.
+    final base = Theme.of(context);
+    final innerTheme = base.copyWith(
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: Colors.white,
+        foregroundColor: brandPrimary,
+        surfaceTintColor: Colors.white,
+        elevation: 0.5,
+        toolbarHeight: 48,
+        titleTextStyle: const TextStyle(color: brandPrimary, fontSize: 17, fontWeight: FontWeight.bold),
+      ),
+      tabBarTheme: base.tabBarTheme.copyWith(labelColor: brandPrimary, unselectedLabelColor: Colors.black54, indicatorColor: brandGreen),
+    );
+
     return PopScope(
-      // Back from another tab returns to Home instead of closing the app.
-      canPop: _index == 0,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) select(0);
+        if (!didPop) _handleBack();
       },
       child: Scaffold(
-        body: IndexedStack(index: _index, children: pages),
+        body: Column(children: [
+          GrozoHeader(onOpen: (page) => _push(page)),
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: Theme(
+                data: innerTheme,
+                child: IndexedStack(
+                  index: _index,
+                  children: [for (final (i, p) in pages.indexed) _tab(i, p)],
+                ),
+              ),
+            ),
+          ),
+        ]),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        floatingActionButton: _OrderNowButton(count: state.cartCount),
+        floatingActionButton: _OrderNowButton(count: state.cartCount, onTap: () => showOrderOptions(context, open: (p) => _push(p))),
         bottomNavigationBar: BottomAppBar(
           height: 68,
           padding: EdgeInsets.zero,
@@ -140,7 +206,8 @@ class _NavItem extends StatelessWidget {
 
 class _OrderNowButton extends StatelessWidget {
   final int count;
-  const _OrderNowButton({required this.count});
+  final VoidCallback onTap;
+  const _OrderNowButton({required this.count, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -148,7 +215,7 @@ class _OrderNowButton extends StatelessWidget {
       button: true,
       label: context.tr('order_now'),
       child: GestureDetector(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView())),
+        onTap: onTap,
         child: Container(
           width: 76,
           height: 76,
@@ -180,7 +247,12 @@ class _OrderNowButton extends StatelessWidget {
                 PositionedDirectional(
                   top: -2,
                   end: -2,
-                  child: _Badge(count: count),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                    constraints: const BoxConstraints(minWidth: 20),
+                    child: Text('$count', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
                 ),
             ],
           ),
@@ -188,17 +260,4 @@ class _OrderNowButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Badge extends StatelessWidget {
-  final int count;
-  const _Badge({required this.count});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
-        constraints: const BoxConstraints(minWidth: 20),
-        child: Text('$count', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-      );
 }

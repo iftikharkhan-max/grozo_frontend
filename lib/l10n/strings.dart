@@ -214,6 +214,41 @@ const Map<String, Map<String, String>> _strings = {
   'account_deleted': {'en': 'Your account has been deleted.', 'ur': 'آپ کا اکاؤنٹ حذف ہو گیا ہے۔'},
   'security': {'en': 'Security', 'ur': 'سیکیورٹی'},
 
+  // Order Now chooser
+  'how_to_order_en': {'en': 'How would you like to order?', 'ur': 'How would you like to order?'},
+  'how_to_order_ur': {'en': 'آپ کس طرح آرڈر کرنا چاہتے ہیں؟', 'ur': 'آپ کس طرح آرڈر کرنا چاہتے ہیں؟'},
+  'online_order': {'en': 'Online Order', 'ur': 'آن لائن آرڈر'},
+  'online_order_sub': {'en': 'Choose products and check out in the app', 'ur': 'ایپ میں اشیاء منتخب کر کے آرڈر کریں'},
+  'call_order': {'en': 'Call', 'ur': 'کال کریں'},
+  'call_order_sub': {'en': 'Tell us your order on the phone', 'ur': 'فون پر اپنا آرڈر بتائیں'},
+  'whatsapp_order': {'en': 'WhatsApp', 'ur': 'واٹس ایپ'},
+  'whatsapp_order_sub': {'en': 'Send us your list on WhatsApp', 'ur': 'واٹس ایپ پر اپنی فہرست بھیجیں'},
+  'whatsapp_greeting': {'en': 'Assalam o Alaikum, I would like to place an order.', 'ur': 'السلام علیکم، میں آرڈر دینا چاہتا/چاہتی ہوں۔'},
+  'no_contact_number': {'en': 'Our phone number is not available yet. Please order online.', 'ur': 'ہمارا فون نمبر ابھی دستیاب نہیں۔ براہ کرم آن لائن آرڈر کریں۔'},
+  'prefer_phone': {'en': 'Prefer to order by phone?', 'ur': 'فون پر آرڈر کرنا چاہتے ہیں؟'},
+
+  // Branches
+  'select_branch': {'en': 'Choose a branch', 'ur': 'برانچ منتخب کریں'},
+  'view_on_map': {'en': 'View on map', 'ur': 'نقشے پر دیکھیں'},
+  'location': {'en': 'Location', 'ur': 'مقام'},
+
+  // Shop / market items
+  'shop_all': {'en': 'All categories', 'ur': 'تمام کیٹیگریز'},
+  'market_items_title': {'en': 'Market items', 'ur': 'بازار کی اشیاء'},
+  'not_in_list': {'en': 'Item not in the list? Add it', 'ur': 'چیز فہرست میں نہیں؟ شامل کریں'},
+  'custom_item_name': {'en': 'What do you need? (name, brand, size)', 'ur': 'آپ کو کیا چاہیے؟ (نام، برانڈ، سائز)'},
+  'quantity': {'en': 'Quantity', 'ur': 'مقدار'},
+  'custom_items_section': {'en': 'Market items – price confirmed at delivery', 'ur': 'بازار کی اشیاء – قیمت ڈیلیوری پر طے ہوگی'},
+  'custom_item_added': {'en': 'Added to your cart', 'ur': 'کارٹ میں شامل ہو گیا'},
+  'price_at_delivery': {'en': 'Price at delivery', 'ur': 'قیمت ڈیلیوری پر'},
+
+  // My Orders tabs
+  'history': {'en': 'History', 'ur': 'تاریخچہ'},
+  'favorite_orders': {'en': 'Favorites', 'ur': 'پسندیدہ'},
+  'no_favorite_orders': {'en': 'Tap ☆ on any order to keep it here and reorder it quickly.', 'ur': 'کسی بھی آرڈر پر ☆ دبائیں تاکہ وہ یہاں محفوظ ہو اور آسانی سے دوبارہ منگوایا جا سکے۔'},
+  'star_order': {'en': 'Add to favorite orders', 'ur': 'پسندیدہ آرڈرز میں شامل کریں'},
+  'unstar_order': {'en': 'Remove from favorite orders', 'ur': 'پسندیدہ آرڈرز سے ہٹائیں'},
+
   // Notifications
   'notifications': {'en': 'Notifications', 'ur': 'اطلاعات'},
   'no_notifications': {'en': 'No notifications yet. Order updates and offers will appear here.', 'ur': 'ابھی کوئی اطلاع نہیں۔ آرڈر کی اپ ڈیٹس اور آفرز یہاں نظر آئیں گی۔'},

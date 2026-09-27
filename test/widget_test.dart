@@ -1,30 +1,53 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
-import 'package:grozo/main.dart';
+import 'package:grozo/state/app_state.dart';
+import 'package:grozo/views/shell/order_options.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const GrozoMVCApp());
+  Widget app(String lang) => ChangeNotifierProvider(
+        create: (_) => AppState(),
+        child: MaterialApp(
+          locale: Locale(lang),
+          supportedLocales: const [Locale('en'), Locale('ur')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => showOrderOptions(context, open: (_) {}),
+                  child: const Text('ORDER NOW'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('Order Now asks how to order, in both languages, with three options', (tester) async {
+    await tester.pumpWidget(app('en'));
+    await tester.tap(find.text('ORDER NOW'));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('How would you like to order?'), findsOneWidget);
+    expect(find.text('آپ کس طرح آرڈر کرنا چاہتے ہیں؟'), findsOneWidget);
+    expect(find.text('🛒 Online Order'), findsOneWidget);
+    expect(find.text('📞 Call'), findsOneWidget);
+    expect(find.text('🟢 WhatsApp'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Order options are translated in Urdu', (tester) async {
+    await tester.pumpWidget(app('ur'));
+    await tester.tap(find.text('ORDER NOW'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('🛒 آن لائن آرڈر'), findsOneWidget);
+    expect(find.text('🟢 واٹس ایپ'), findsOneWidget);
   });
 }

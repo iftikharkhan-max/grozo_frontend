@@ -15,6 +15,20 @@ class CartLine {
   factory CartLine.fromJson(Map<String, dynamic> j) => CartLine(Product.fromJson(j['product']), j['qty'] ?? 1);
 }
 
+/// An item the customer wants from the market that isn't in the catalogue.
+/// Its price is confirmed when the order is delivered.
+class CustomItem {
+  final String name;
+  int qty;
+  CustomItem(this.name, this.qty);
+
+  Map<String, dynamic> toJson() => {'name': name, 'qty': qty};
+  factory CustomItem.fromJson(Map<String, dynamic> j) => CustomItem('${j['name']}', (j['qty'] as num?)?.toInt() ?? 1);
+
+  /// How it is written into the order's shopping list.
+  String get line => '$name × $qty';
+}
+
 /// App-wide state: session, language, cart and favorites. Persisted so the
 /// customer stays logged in and keeps their cart after closing the app.
 class AppState extends ChangeNotifier {
@@ -23,12 +37,21 @@ class AppState extends ChangeNotifier {
   static const _kUser = 'auth_user';
   static const _kLang = 'language';
   static const _kCart = 'cart';
+  static const _kCustom = 'cart_custom_items';
+  static const _kBranch = 'selected_branch';
 
   SharedPreferences? _prefs;
 
   UserModel? user;
   String language = 'en';
   final Map<int, CartLine> _cart = {};
+  final List<CustomItem> customItems = [];
+
+  /// Active branches and the one the customer picked in the header.
+  List<Map<String, dynamic>> branches = [];
+  int? _selectedBranchId;
+  Map<String, dynamic>? get selectedBranch =>
+      branches.where((b) => b['id'] == _selectedBranchId).firstOrNull ?? branches.firstOrNull;
   final Set<int> favoriteIds = {};
 
   /// Bumped only after the server has confirmed a favorites change, so lists
@@ -69,6 +92,13 @@ class AppState extends ChangeNotifier {
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
     language = _prefs!.getString(_kLang) ?? 'en';
+
+    _selectedBranchId = _prefs!.getInt(_kBranch);
+    try {
+      final custom = _prefs!.getString(_kCustom);
+      if (custom != null) customItems.addAll((jsonDecode(custom) as List).map((j) => CustomItem.fromJson(Map<String, dynamic>.from(j))));
+    } catch (_) {}
+    loadBranches();
 
     final cartJson = _prefs!.getString(_kCart);
     if (cartJson != null) {
@@ -180,10 +210,49 @@ class AppState extends ChangeNotifier {
     if (isLoggedIn) Api.put('/auth/me', {'language': lang});
   }
 
+  // ---------- Branches ----------
+
+  Future<void> loadBranches() async {
+    final res = await Api.get('/branches');
+    if (res.ok && res.data is List) {
+      branches = List<Map<String, dynamic>>.from(res.data);
+      notifyListeners();
+    }
+  }
+
+  void selectBranch(int id) {
+    _selectedBranchId = id;
+    _prefs?.setInt(_kBranch, id);
+    notifyListeners();
+  }
+
   // ---------- Cart ----------
 
   List<CartLine> get cartLines => _cart.values.toList();
-  int get cartCount => _cart.values.fold(0, (s, l) => s + l.qty);
+  int get cartCount => _cart.values.fold(0, (s, l) => s + l.qty) + customItems.fold(0, (s, c) => s + c.qty);
+  bool get cartIsEmpty => _cart.isEmpty && customItems.isEmpty;
+
+  /// Extra market items as the shopping-list text sent with the order.
+  String get customItemsText => customItems.map((c) => c.line).join('\n');
+
+  void addCustomItem(String name, int qty) {
+    final existing = customItems.where((c) => c.name.toLowerCase() == name.toLowerCase()).firstOrNull;
+    if (existing != null) {
+      existing.qty += qty;
+    } else {
+      customItems.add(CustomItem(name, qty));
+    }
+    _saveCart();
+  }
+
+  void setCustomQty(CustomItem item, int qty) {
+    if (qty <= 0) {
+      customItems.remove(item);
+    } else {
+      item.qty = qty;
+    }
+    _saveCart();
+  }
   int qtyInCart(int productId) => _cart[productId]?.qty ?? 0;
 
   /// Estimated items total from the last known prices; the server re-checks at checkout.
@@ -226,11 +295,13 @@ class AppState extends ChangeNotifier {
 
   void clearCart() {
     _cart.clear();
+    customItems.clear();
     _saveCart();
   }
 
   void _saveCart() {
     _prefs?.setString(_kCart, jsonEncode(_cart.values.map((l) => l.toJson()).toList()));
+    _prefs?.setString(_kCustom, jsonEncode(customItems.map((c) => c.toJson()).toList()));
     notifyListeners();
   }
 

@@ -31,7 +31,7 @@ class StoreAdminTab extends StatelessWidget {
         item(Icons.inventory_2_outlined, 'Products', 'Add and edit products, prices, discounts, stock', const ProductsAdminView()),
         item(Icons.category_outlined, 'Categories', 'Vegetables, Fruits and Market Shopping tiles', const CategoriesAdminView()),
         item(Icons.local_offer_outlined, 'Offers & Deals', 'Home-page banners for offers, discounts and deals', const BannersAdminView()),
-        item(Icons.storefront_outlined, 'Branch', 'Name, address, phone, hours and map location', const BranchAdminView()),
+        item(Icons.storefront_outlined, 'Branches', 'Add branches: name, address, phone, hours, map location', const BranchesAdminView()),
         item(Icons.local_shipping_outlined, 'Delivery charges', 'Charge by distance from the branch', const DeliveryChargesAdminView()),
         item(Icons.info_outline, 'Store information', 'Support contacts, About Us, Terms, Privacy, FAQ', const StoreInfoAdminView()),
         item(Icons.campaign_outlined, 'Send notification', 'Tell customers about an offer, deal or new product', const BroadcastAdminView()),
