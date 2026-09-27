@@ -12,6 +12,7 @@ import '../catalog/product_list_view.dart';
 import '../common/more_menu.dart';
 import '../common/product_widgets.dart';
 import '../info/branch_view.dart';
+import '../notifications/notifications_view.dart';
 import '../shell/main_shell.dart';
 
 class HomeData {
@@ -181,6 +182,17 @@ class _Header extends StatelessWidget {
                 ),
               ),
               _LanguageToggle(current: state.language, onChanged: state.setLanguage),
+              if (state.isLoggedIn)
+                IconButton(
+                  tooltip: context.tr('notifications'),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsView())),
+                  icon: Badge(
+                    isLabelVisible: state.unreadNotifications > 0,
+                    label: Text('${state.unreadNotifications}'),
+                    child: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
+                  ),
+                ),
               _CartIcon(count: state.cartCount),
               IconButton(
                 tooltip: context.tr('more'),

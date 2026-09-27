@@ -10,6 +10,9 @@ import '../info/help_view.dart';
 import '../info/info_page.dart';
 import '../shell/main_shell.dart';
 import 'addresses_view.dart';
+import '../notifications/notifications_view.dart';
+import '../../models/user_model.dart';
+import '../../services/api.dart';
 import 'profile_view.dart';
 
 /// Simple list-based account page.
@@ -68,6 +71,8 @@ class AccountView extends StatelessWidget {
             tile(Icons.location_on_outlined, context.tr('addresses'), () => go(const AddressesView())),
             tile(Icons.receipt_long_outlined, context.tr('my_orders'), () => MainShell.switchTab(context, MainShell.orders)),
             tile(Icons.favorite_border, context.tr('favorites'), () => MainShell.switchTab(context, MainShell.favorites)),
+            tile(Icons.notifications_none, context.tr('notifications'), () => go(const NotificationsView())),
+            tile(Icons.tune, context.tr('notification_settings'), () => _notificationSettings(context)),
           ],
           section(context.tr('more')),
           tile(Icons.translate, context.tr('language'), () => showLanguagePicker(context),
@@ -86,4 +91,42 @@ class AccountView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Order updates are always on; promotions can be switched off.
+void _notificationSettings(BuildContext context) {
+  final state = context.read<AppState>();
+  var promos = state.user?.notifyPromotions ?? true;
+  showModalBottomSheet(
+    context: context,
+    showDragHandle: true,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSheet) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(context.tr('notification_settings'), style: Theme.of(context).textTheme.titleMedium),
+          SwitchListTile(
+            title: Text(context.tr('notify_orders')),
+            subtitle: Text(context.tr('notify_orders_sub')),
+            value: true,
+            onChanged: null,
+          ),
+          SwitchListTile(
+            title: Text(context.tr('notify_promos')),
+            subtitle: Text(context.tr('notify_promos_sub')),
+            value: promos,
+            onChanged: (v) async {
+              setSheet(() => promos = v);
+              final res = await Api.put('/auth/me', {'notify_promotions': v});
+              if (res.ok) {
+                state.setUser(UserModel.fromJson(Map<String, dynamic>.from(res.data)));
+              } else {
+                setSheet(() => promos = !v);
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+        ]),
+      ),
+    ),
+  );
 }

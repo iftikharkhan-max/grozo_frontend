@@ -6,6 +6,7 @@ import '../../utils/validators.dart';
 import '../../utils/constants.dart';
 import '../../controllers/auth_service.dart';
 import 'store/store_admin_tab.dart';
+import 'orders/admin_orders_tab.dart';
 import '../common/more_menu.dart';
 
 class AddUserView extends StatefulWidget {
@@ -154,7 +155,7 @@ class _AddUserViewState extends State<AddUserView> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin Operations Panel'),
@@ -163,7 +164,9 @@ class _AddUserViewState extends State<AddUserView> {
           bottom: const TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white54,
+            isScrollable: false,
             tabs: [
+              Tab(icon: Icon(Icons.receipt_long), text: 'Orders'),
               Tab(icon: Icon(Icons.person_add), text: 'Add Staff'),
               Tab(icon: Icon(Icons.manage_accounts), text: 'Manage'),
               Tab(icon: Icon(Icons.storefront), text: 'Store'),
@@ -176,6 +179,9 @@ class _AddUserViewState extends State<AddUserView> {
         ),
         body: TabBarView(
           children: [
+            // --- ORDERS ---
+            const AdminOrdersTab(),
+
             // --- TAB 1: ADD STAFF FORM ---
             Form(
               key: _formKey,

@@ -40,6 +40,22 @@ class AppState extends ChangeNotifier {
   void ordersChanged() {
     ordersRevision++;
     notifyListeners();
+    refreshUnread();
+  }
+
+  /// Unread in-app notifications (bell badge). Customers only.
+  int unreadNotifications = 0;
+
+  Future<void> refreshUnread() async {
+    if (!isLoggedIn || !user!.isCustomer) return;
+    final res = await Api.get('/me/notifications/unread-count');
+    if (res.ok && res.data is Map) {
+      final n = (res.data['unread'] as num?)?.toInt() ?? 0;
+      if (n != unreadNotifications) {
+        unreadNotifications = n;
+        notifyListeners();
+      }
+    }
   }
 
   /// Set when the server ends the session; the UI shows a message once.
@@ -80,6 +96,7 @@ class AppState extends ChangeNotifier {
     if (isLoggedIn) {
       refreshProfile();
       loadFavorites();
+      refreshUnread();
     }
   }
 
@@ -107,6 +124,7 @@ class AppState extends ChangeNotifier {
     if (user!.language != language) Api.put('/auth/me', {'language': language});
     notifyListeners();
     loadFavorites();
+    refreshUnread();
   }
 
   Future<void> refreshProfile() async {
@@ -134,6 +152,7 @@ class AppState extends ChangeNotifier {
     Api.token = null;
     user = null;
     favoriteIds.clear();
+    unreadNotifications = 0;
     await _secure.delete(key: _kToken);
     await _secure.delete(key: _kUser);
     notifyListeners();

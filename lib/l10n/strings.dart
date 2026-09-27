@@ -214,6 +214,18 @@ const Map<String, Map<String, String>> _strings = {
   'account_deleted': {'en': 'Your account has been deleted.', 'ur': 'آپ کا اکاؤنٹ حذف ہو گیا ہے۔'},
   'security': {'en': 'Security', 'ur': 'سیکیورٹی'},
 
+  // Notifications
+  'notifications': {'en': 'Notifications', 'ur': 'اطلاعات'},
+  'no_notifications': {'en': 'No notifications yet. Order updates and offers will appear here.', 'ur': 'ابھی کوئی اطلاع نہیں۔ آرڈر کی اپ ڈیٹس اور آفرز یہاں نظر آئیں گی۔'},
+  'notification_settings': {'en': 'Notification settings', 'ur': 'اطلاعات کی ترتیبات'},
+  'notify_orders': {'en': 'Order updates', 'ur': 'آرڈر کی اپ ڈیٹس'},
+  'notify_orders_sub': {'en': 'Always on – you need these to follow your orders.', 'ur': 'ہمیشہ آن – آرڈر کی معلومات کے لیے ضروری۔'},
+  'notify_promos': {'en': 'Offers & deals', 'ur': 'آفرز اور ڈیلز'},
+  'notify_promos_sub': {'en': 'Discounts, deals and new products.', 'ur': 'رعایتیں، ڈیلز اور نئی اشیاء۔'},
+  'just_now': {'en': 'just now', 'ur': 'ابھی'},
+  'minutes_ago': {'en': '{n} min ago', 'ur': '{n} منٹ پہلے'},
+  'hours_ago': {'en': '{n} h ago', 'ur': '{n} گھنٹے پہلے'},
+
   // Branch / info
   'branch_not_set': {'en': 'Branch details will be available soon.', 'ur': 'برانچ کی تفصیلات جلد دستیاب ہوں گی۔'},
   'open_in_maps': {'en': 'Get directions in Google Maps', 'ur': 'گوگل میپس میں راستہ دیکھیں'},

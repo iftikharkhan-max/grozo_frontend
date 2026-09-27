@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin_form.dart';
 import 'banners_admin_view.dart';
+import 'broadcast_admin_view.dart';
 import 'branch_admin_view.dart';
 import 'categories_admin_view.dart';
 import 'delivery_charges_admin_view.dart';
@@ -33,6 +34,7 @@ class StoreAdminTab extends StatelessWidget {
         item(Icons.storefront_outlined, 'Branch', 'Name, address, phone, hours and map location', const BranchAdminView()),
         item(Icons.local_shipping_outlined, 'Delivery charges', 'Charge by distance from the branch', const DeliveryChargesAdminView()),
         item(Icons.info_outline, 'Store information', 'Support contacts, About Us, Terms, Privacy, FAQ', const StoreInfoAdminView()),
+        item(Icons.campaign_outlined, 'Send notification', 'Tell customers about an offer, deal or new product', const BroadcastAdminView()),
       ],
     );
   }

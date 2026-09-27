@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/strings.dart';
@@ -25,8 +26,29 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   late int _index = widget.initialTab;
+  Timer? _unreadTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Keep the bell badge fresh while the app is open.
+    _unreadTimer = Timer.periodic(const Duration(seconds: 60), (_) => context.read<AppState>().refreshUnread());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) context.read<AppState>().refreshUnread();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _unreadTimer?.cancel();
+    super.dispose();
+  }
 
   void select(int i) => setState(() => _index = i);
 
