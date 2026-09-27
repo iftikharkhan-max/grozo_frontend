@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:grozo/services/api.dart';
 import 'package:http_parser/http_parser.dart';
 import '../utils/constants.dart';
 
 class ProductService {
   static Future<List<dynamic>> fetchCatalog() async {
     try {
-      final res = await http.get(Uri.parse('${Config.baseUrl}/products'));
+      final res = await http.get(Uri.parse('${Config.baseUrl}/products'), headers: Api.authHeaders);
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
       }
@@ -29,6 +30,7 @@ class ProductService {
           'POST',
           Uri.parse('${Config.baseUrl}/products'),
         );
+        request.headers.addAll(Api.authHeaders);
         request.fields['name'] = name;
         request.fields['price'] = price.toString();
         
@@ -49,7 +51,7 @@ class ProductService {
       } else {
         final res = await http.post(
           Uri.parse('${Config.baseUrl}/products'),
-          headers: {'Content-Type': 'application/json'},
+          headers: Api.jsonHeaders,
           body: jsonEncode({
             'name': name,
             'price': price,

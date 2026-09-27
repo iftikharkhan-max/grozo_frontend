@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
 import '../../controllers/location_service.dart';
-import '../storefront_view.dart';
+import '../common/more_menu.dart';
 
 class RiderDashboard extends StatefulWidget {
   final UserModel user;
@@ -38,9 +38,7 @@ class _RiderDashboardState extends State<RiderDashboard> {
     if (mounted) setState(() => _report = data);
   }
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const StorefrontView()), (route) => false);
-  }
+  void _logout() => confirmLogout(context);
 
   @override
   Widget build(BuildContext context) {

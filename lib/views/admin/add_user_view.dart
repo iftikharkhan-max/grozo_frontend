@@ -1,13 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
+import 'package:grozo/services/api.dart';
 import '../../utils/validators.dart';
 import '../../utils/constants.dart';
 import '../../controllers/auth_service.dart';
-import '../../controllers/product_service.dart';
-import '../storefront_view.dart';
+import 'store/store_admin_tab.dart';
+import '../common/more_menu.dart';
 
 class AddUserView extends StatefulWidget {
   const AddUserView({super.key});
@@ -28,13 +27,6 @@ class _AddUserViewState extends State<AddUserView> {
 
   List<dynamic> _staffList = [];
 
-  // --- PRODUCT TAB VARIABLES ---
-  final _prodFormKey = GlobalKey<FormState>();
-  final _prodName = TextEditingController();
-  final _prodPrice = TextEditingController();
-  final _prodImage = TextEditingController();
-  File? _pickedImage;
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -45,7 +37,7 @@ class _AddUserViewState extends State<AddUserView> {
   // --- EXISTING STAFF LOGIC ---
   void _loadStaff() async {
     try {
-      final res = await http.get(Uri.parse('${Config.baseUrl}/admin'));
+      final res = await http.get(Uri.parse('${Config.baseUrl}/admin'), headers: Api.authHeaders);
       if (res.statusCode == 200) {
         if (mounted) setState(() => _staffList = jsonDecode(res.body));
       }
@@ -157,40 +149,7 @@ class _AddUserViewState extends State<AddUserView> {
     );
   }
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const StorefrontView()), (route) => false);
-  }
-
-  // --- NEW PRODUCT LOGIC ---
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _pickedImage = File(image.path);
-      });
-    }
-  }
-
-  void _addProduct() async {
-    if (!_prodFormKey.currentState!.validate()) return;
-
-    final success = await ProductService.createProduct(
-      name: _prodName.text,
-      price: double.tryParse(_prodPrice.text) ?? 0.0,
-      imageFile: _pickedImage,
-      imageUrl: _prodImage.text.isEmpty ? null : _prodImage.text,
-    );
-
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product added to catalog!')));
-      _prodName.clear(); _prodPrice.clear(); _prodImage.clear();
-      setState(() {
-        _pickedImage = null;
-      });
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to add product.')));
-    }
-  }
+  void _logout() => confirmLogout(context);
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +166,7 @@ class _AddUserViewState extends State<AddUserView> {
             tabs: [
               Tab(icon: Icon(Icons.person_add), text: 'Add Staff'),
               Tab(icon: Icon(Icons.manage_accounts), text: 'Manage'),
-              Tab(icon: Icon(Icons.add_shopping_cart), text: 'Add Product'),
+              Tab(icon: Icon(Icons.storefront), text: 'Store'),
             ],
           ),
           actions: [
@@ -269,71 +228,8 @@ class _AddUserViewState extends State<AddUserView> {
               },
             ),
 
-            // --- TAB 3: ADD PRODUCT FORM ---
-            Form(
-              key: _prodFormKey,
-              child: ListView(
-                padding: const EdgeInsets.all(24.0),
-                children: [
-                  const Text('Add New Grocery Item', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                      controller: _prodName,
-                      decoration: const InputDecoration(labelText: 'Product Name (e.g., Bread)'),
-                      validator: (v) => v!.isEmpty ? 'Required' : null
-                  ),
-                  TextFormField(
-                      controller: _prodPrice,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Price (PKR)'),
-                      validator: (v) => v!.isEmpty ? 'Required' : null
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('Product Image', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _pickImage,
-                          icon: const Icon(Icons.image),
-                          label: Text(_pickedImage == null ? 'Browse Image' : 'Change Image'),
-                        ),
-                      ),
-                      if (_pickedImage != null) ...[
-                        const SizedBox(width: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _pickedImage!,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ]
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  const Center(child: Text('OR')),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _prodImage,
-                    decoration: const InputDecoration(labelText: 'Image URL (Fallback)'),
-                  ),
-                  const SizedBox(height: 30),
-                  ElevatedButton(
-                      onPressed: _addProduct,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('SAVE PRODUCT TO CATALOG', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
-                  )
-                ],
-              ),
-            ),
+            // --- TAB 3: STORE MANAGEMENT ---
+            const StoreAdminTab(),
           ],
         ),
       ),

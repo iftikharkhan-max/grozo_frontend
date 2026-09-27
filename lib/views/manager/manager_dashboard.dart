@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
-import '../storefront_view.dart';
+import '../common/more_menu.dart';
 
 class ManagerDashboard extends StatefulWidget {
   final UserModel user;
@@ -46,9 +46,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     }
   }
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const StorefrontView()), (route) => false);
-  }
+  void _logout() => confirmLogout(context);
 
   void _createOnBehalfDialog() {
     dynamic selectedCustomerId;

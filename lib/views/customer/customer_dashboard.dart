@@ -5,11 +5,17 @@ import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
 import '../../controllers/auth_service.dart';
 import '../../utils/constants.dart';
-import '../storefront_view.dart';
+import 'package:provider/provider.dart';
+import '../../state/app_state.dart';
+import '../common/more_menu.dart';
+import '../routing.dart';
 
 class CustomerDashboard extends StatefulWidget {
   final UserModel user;
-  const CustomerDashboard({super.key, required this.user});
+
+  /// True when shown as the "My Orders" footer tab (no back button).
+  final bool embedded;
+  const CustomerDashboard({super.key, required this.user, this.embedded = false});
   @override
   State<CustomerDashboard> createState() => _CustomerDashboardState();
 }
@@ -43,9 +49,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     });
   }
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const StorefrontView()), (route) => false);
-  }
+  void _logout() => confirmLogout(context);
 
   void _confirmDeleteAccount() async {
     bool confirm = await showDialog(
@@ -65,7 +69,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully.')));
-          _logout();
+          await context.read<AppState>().signOutLocally();
+          if (mounted) goToStoreHome(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete account.')));
         }
@@ -106,7 +111,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-            title: const Text('My Profile & Orders'),
+            automaticallyImplyLeading: !widget.embedded,
+            title: const Text('My Orders'),
             bottom: const TabBar(
               tabs: [Tab(text: 'Tracking'), Tab(text: 'History')],
             ),

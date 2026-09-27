@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:grozo/services/api.dart';
 // Absolute package imports to resolve 'Config' and 'UserModel'
 import 'package:grozo/utils/constants.dart';
 import 'package:grozo/models/user_model.dart';
@@ -12,7 +13,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${Config.baseUrl}/auth/login'),
-        headers: {'Content-Type': 'application/json'},
+        headers: Api.jsonHeaders,
         body: jsonEncode({'email': email, 'password': password}),
       );
 
@@ -42,7 +43,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${Config.baseUrl}/admin/add-user'), // Hits your admin MVC route
-        headers: {'Content-Type': 'application/json'},
+        headers: Api.jsonHeaders,
         body: jsonEncode({
           'name': name,
           'email': email,
@@ -75,7 +76,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${Config.baseUrl}/auth/register'),
-        headers: {'Content-Type': 'application/json'},
+        headers: Api.jsonHeaders,
         body: jsonEncode({
           'name': name,
           'email': email,
@@ -95,7 +96,7 @@ class AuthService {
     try {
       final response = await http.put(
         Uri.parse('${Config.baseUrl}/admin/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: Api.jsonHeaders,
         body: jsonEncode(data),
       );
       return response.statusCode == 200;
@@ -111,7 +112,7 @@ class AuthService {
       // 2. Notice we added /deactivate to the end of the URL
       final res = await http.put(
         Uri.parse('${Config.baseUrl}/admin/$id/deactivate'),
-        headers: {'Content-Type': 'application/json'},
+        headers: Api.jsonHeaders,
       );
 
       // If the backend returns a 200 OK, the deactivation was successful
@@ -125,7 +126,7 @@ class AuthService {
     try {
       // Deactivating customer account
       final response = await http.put(
-        Uri.parse('${Config.baseUrl}/admin/$id/deactivate'),
+        Uri.parse('${Config.baseUrl}/admin/$id/deactivate'), headers: Api.authHeaders,
       );
       return response.statusCode == 200;
     } catch (e) {

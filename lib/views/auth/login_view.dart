@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:grozo/controllers/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../../l10n/strings.dart';
+import '../../state/app_state.dart';
+import '../info/help_view.dart';
+import '../routing.dart';
 import 'signup_view.dart';
-import '../manager/manager_dashboard.dart';
-import '../rider/rider_dashboard.dart';
-import '../admin/add_user_view.dart';
-import '../storefront_view.dart';
 
 class LoginView extends StatefulWidget {
-  const LoginView({super.key});
+  /// When true, a customer login pops back to the screen that asked for it.
+  final bool returnOnSuccess;
+  const LoginView({super.key, this.returnOnSuccess = false});
   @override
   State<LoginView> createState() => _LoginViewState();
 }
@@ -16,36 +18,39 @@ class _LoginViewState extends State<LoginView> {
   final _email = TextEditingController();
   final _pass = TextEditingController();
   bool _loading = false;
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _pass.dispose();
+    super.dispose();
+  }
 
   void _submit() async {
-    if (_email.text.isEmpty || _pass.text.isEmpty) return;
+    if (_email.text.trim().isEmpty || _pass.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('fill_all'))));
+      return;
+    }
     setState(() => _loading = true);
-    final result = await AuthService.login(_email.text, _pass.text);
+    final state = context.read<AppState>();
+    final result = await state.login(_email.text, _pass.text);
+    if (!mounted) return;
     setState(() => _loading = false);
 
-    if (!mounted) return;
-
-    if (result['success']) {
-      final user = result['user'];
-      Widget dest;
-      if (user.role == 'Admin') {
-        dest = const AddUserView();
-      } else if (user.role == 'Manager') {
-        dest = ManagerDashboard(user: user);
-      } else if (user.role == 'Rider') {
-        dest = RiderDashboard(user: user);
+    if (result.ok) {
+      final user = state.user!;
+      if (user.isCustomer && widget.returnOnSuccess) {
+        Navigator.pop(context, true);
       } else {
-        // Customers now land on StorefrontView
-        dest = StorefrontView(user: user);
+        Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => homeFor(user)), (route) => false);
       }
-
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => dest));
+    } else if (result.status == 403) {
+      _showInactiveDialog(result.data?['message'] ?? '');
     } else {
-      if (result['error'] == 'inactive') {
-        _showInactiveDialog(result['message']);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(friendlyError(context, errorCode: result.errorCode, serverMessage: result.message)),
+      ));
     }
   }
 
@@ -53,19 +58,16 @@ class _LoginViewState extends State<LoginView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Account Inactive'),
+        title: Text(context.tr('account_inactive')),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('ok'))),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              // You could navigate to a support page or open WhatsApp here
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpView()));
             },
-            child: const Text('Contact Support'),
+            child: Text(context.tr('contact_support')),
           ),
         ],
       ),
@@ -75,53 +77,67 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface, // Matches your brand background
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 1. ADD YOUR LOGO HERE AT THE TOP OF THE CARD
-            Image.asset(
-              'assets/images/logo.png',
-              width: 120,
-              height: 120,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Theme.of(context).colorScheme.primary,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: AutofillGroup(
+            child: Column(
+              children: [
+                Image.asset('assets/images/logo.png', width: 120, height: 120),
+                const SizedBox(height: 16),
+                Text(context.tr('welcome_back'), style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: 30),
+                TextField(
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: context.tr('email'), prefixIcon: const Icon(Icons.email_outlined)),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _pass,
+                  obscureText: _obscure,
+                  autofillHints: const [AutofillHints.password],
+                  onSubmitted: (_) => _submit(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('password'),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _loading
+                    ? const CircularProgressIndicator()
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(onPressed: _submit, child: Text(context.tr('sign_in'))),
+                      ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () async {
+                    final created = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const SignupView()));
+                    if (created == true && context.mounted) {
+                      if (widget.returnOnSuccess) {
+                        Navigator.pop(context, true);
+                      } else {
+                        goToStoreHome(context);
+                      }
+                    }
+                  },
+                  child: Text(context.tr('no_account')),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-
-            // Your title text styled using your global primary color
-            Text(
-              'GROZO LOGISTICS',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 30),
-
-            TextField(
-              controller: _email,
-              decoration: const InputDecoration(labelText: 'Email Address'),
-            ),
-            const SizedBox(height: 16), // Added spacing between text fields
-
-            TextField(
-              controller: _pass,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-            ),
-            const SizedBox(height: 24),
-
-            _loading
-                ? CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary))
-                : SizedBox(
-              width: double.infinity, // Makes button span beautifully across the screen
-              child: ElevatedButton(onPressed: _submit, child: const Text('SIGN IN')),
-            ),
-            const SizedBox(height: 12),
-
-            TextButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupView())),
-              child: const Text('Create Customer Account'),
-            )
-          ],
+          ),
         ),
       ),
     );

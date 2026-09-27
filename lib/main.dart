@@ -1,25 +1,46 @@
 import 'package:flutter/material.dart';
-import 'views/storefront_view.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
+import 'state/app_state.dart';
+import 'views/shell/main_shell.dart';
 import 'views/auth/login_view.dart';
 import 'views/auth/signup_view.dart';
+import 'views/routing.dart';
+import 'utils/brand.dart';
 
 void main() {
-  runApp(const GrozoMVCApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AppState(),
+      child: const GrozoMVCApp(),
+    ),
+  );
 }
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 class GrozoMVCApp extends StatelessWidget {
   const GrozoMVCApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const Color brandPrimary = Color(0xFF045826);
-    const Color brandAccent = Color(0xFFD66006);
-    const Color brandBackground = Color(0xFFF4F6F7);
     const Color inputFillColor = Colors.white;
+    final language = context.select<AppState, String>((s) => s.language);
 
     return MaterialApp(
       title: 'Fast, Reliable -> Grozo',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
+
+      // English / Urdu; Urdu switches the whole layout to right-to-left.
+      locale: Locale(language),
+      supportedLocales: const [Locale('en'), Locale('ur')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
 
       theme: ThemeData(
         useMaterial3: true,
@@ -78,12 +99,10 @@ class GrozoMVCApp extends StatelessWidget {
         ),
       ),
 
-      // Set initial widget with splash delay
-      home: const LoginScreenWrapper(),
+      home: const SplashGate(),
 
-      // Define named routes to easily navigate between screens
       routes: {
-        '/storefront': (context) => const StorefrontView(),
+        '/storefront': (context) => const MainShell(),
         '/login': (context) => const LoginView(),
         '/signup': (context) => const SignupView(),
       },
@@ -91,56 +110,48 @@ class GrozoMVCApp extends StatelessWidget {
   }
 }
 
-class LoginScreenWrapper extends StatefulWidget {
-  const LoginScreenWrapper({super.key});
+/// Shows the logo while the saved session, language and cart are restored.
+class SplashGate extends StatefulWidget {
+  const SplashGate({super.key});
 
   @override
-  State<LoginScreenWrapper> createState() => _LoginScreenWrapperState();
+  State<SplashGate> createState() => _SplashGateState();
 }
 
-class _LoginScreenWrapperState extends State<LoginScreenWrapper> {
-  bool _isLoading = true;
+class _SplashGateState extends State<SplashGate> {
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    final state = context.read<AppState>();
+    Future.wait([
+      state.load(),
+      Future.delayed(const Duration(milliseconds: 1200)),
+    ]).then((_) {
+      if (mounted) setState(() => _ready = true);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (!_ready) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                'assets/images/logo.png',
-                width: 180,
-                height: 180,
-              ),
+              Image.asset('assets/images/logo.png', width: 180, height: 180),
               const SizedBox(height: 24),
               CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
               ),
             ],
           ),
         ),
       );
     }
-
-    // Change this return widget to StorefrontView() if you want the home screen to show after splash,
-    // or keep LoginView() if users must sign in first.
-    return const StorefrontView();
+    return homeFor(context.read<AppState>().user);
   }
 }
