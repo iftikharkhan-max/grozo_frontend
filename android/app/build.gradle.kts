@@ -13,6 +13,20 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// Release builds must be signed with the Play upload key. Signing a release with
+// the debug key is only allowed for local checks: -PallowDebugSigning
+// (or env ORG_GRADLE_PROJECT_allowDebugSigning=true); Play rejects such builds.
+val allowDebugSigning = project.hasProperty("allowDebugSigning")
+gradle.taskGraph.whenReady {
+    val buildingRelease = allTasks.any { it.name.contains("Release") }
+    if (buildingRelease && !keystorePropertiesFile.exists() && !allowDebugSigning) {
+        throw GradleException(
+            "android/key.properties is missing, so this release cannot be signed with the " +
+                "Google Play upload key. Create it from android/key.properties.example."
+        )
+    }
+}
+
 android {
     namespace = "com.iftikhar.grozo"
     compileSdk = flutter.compileSdkVersion
@@ -27,7 +41,7 @@ android {
         applicationId = "com.iftikhar.grozo"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 3
+        versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 

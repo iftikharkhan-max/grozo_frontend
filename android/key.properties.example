@@ -1,0 +1,10 @@
+# Copy this file to android/key.properties (it is git-ignored) and fill it in.
+# Never commit key.properties or share its passwords.
+#
+# storeFile: the keystore whose certificate matches E:\Mobile Apps\upload_cert.der
+#   - E:/Mobile Apps/upload-keystore.jks   (key alias: upload)
+#   - E:/Mobile Apps/mykeystorefile        (key alias: key0)
+storeFile=E:/Mobile Apps/upload-keystore.jks
+keyAlias=upload
+storePassword=
+keyPassword=
