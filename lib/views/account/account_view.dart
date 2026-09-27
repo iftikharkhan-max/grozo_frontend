@@ -9,9 +9,10 @@ import '../info/branch_view.dart';
 import '../info/help_view.dart';
 import '../info/info_page.dart';
 import '../shell/main_shell.dart';
+import 'addresses_view.dart';
+import 'profile_view.dart';
 
-/// Simple list-based account page. Profile, addresses, notifications and
-/// password open in the next updates.
+/// Simple list-based account page.
 class AccountView extends StatelessWidget {
   const AccountView({super.key});
 
@@ -20,7 +21,6 @@ class AccountView extends StatelessWidget {
     final state = context.watch<AppState>();
     final user = state.user;
     void go(Widget page) => Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-    void soon() => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('coming_soon'))));
 
     Widget tile(IconData icon, String title, VoidCallback onTap, {String? subtitle, Color? color}) => ListTile(
           leading: Icon(icon, color: color ?? brandPrimary),
@@ -64,8 +64,8 @@ class AccountView extends StatelessWidget {
           ),
           if (user != null) ...[
             section(context.tr('account')),
-            tile(Icons.person_outline, 'Profile', soon),
-            tile(Icons.location_on_outlined, 'Addresses', soon),
+            tile(Icons.person_outline, context.tr('profile'), () => go(const ProfileView())),
+            tile(Icons.location_on_outlined, context.tr('addresses'), () => go(const AddressesView())),
             tile(Icons.receipt_long_outlined, context.tr('my_orders'), () => MainShell.switchTab(context, MainShell.orders)),
             tile(Icons.favorite_border, context.tr('favorites'), () => MainShell.switchTab(context, MainShell.favorites)),
           ],

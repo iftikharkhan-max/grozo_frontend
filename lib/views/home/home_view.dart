@@ -7,6 +7,7 @@ import '../../services/api.dart';
 import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../cart/cart_view.dart';
+import '../checkout/market_request_view.dart';
 import '../catalog/product_list_view.dart';
 import '../common/more_menu.dart';
 import '../common/product_widgets.dart';
@@ -418,7 +419,7 @@ class _OrderAnythingCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 shape: const StadiumBorder(),
               ),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView())),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketRequestView())),
               icon: const Icon(Icons.shopping_bag_outlined, size: 18),
               label: Text(context.tr('order_now'), style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
@@ -572,6 +573,18 @@ class _MarketShopping extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Text(context.tr('market_shopping_sub'), style: const TextStyle(fontSize: 12.5, color: Colors.black87)),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: brandPrimary, side: const BorderSide(color: brandGreen), backgroundColor: Colors.white),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketRequestView())),
+              icon: const Icon(Icons.edit_note),
+              label: Text(context.tr('write_list')),
+            ),
+          ),
         ),
         SizedBox(
           height: 104,

@@ -3,6 +3,8 @@ import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
 import '../../controllers/location_service.dart';
 import '../common/more_menu.dart';
+import '../staff/order_info.dart';
+import '../../models/order.dart';
 
 class RiderDashboard extends StatefulWidget {
   final UserModel user;
@@ -15,7 +17,22 @@ class _RiderDashboardState extends State<RiderDashboard> {
   List<dynamic> _activeAssignments = [];
   Map<String, dynamic> _report = {'count': 0, 'total': 0};
   final LocationService _loc = LocationService();
-  final _amountController = TextEditingController();
+  // One "cash collected" field per order.
+  final Map<dynamic, TextEditingController> _amounts = {};
+
+  TextEditingController _amountFor(Map o) => _amounts.putIfAbsent(o['id'], () {
+        final order = Order.fromJson(Map<String, dynamic>.from(o)..putIfAbsent('items', () => const []));
+        // Pre-fill the known total; market requests / unknown delivery charge must be entered.
+        return TextEditingController(text: order.totalPending ? '' : order.amount.toStringAsFixed(0));
+      });
+
+  @override
+  void dispose() {
+    for (final c in _amounts.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -30,7 +47,15 @@ class _RiderDashboardState extends State<RiderDashboard> {
 
   void _loadManifest() async {
     final data = await OrderService.fetchOrdersByRole('rider', widget.user.id);
-    if (mounted) setState(() => _activeAssignments = data);
+    if (!mounted) return;
+    setState(() => _activeAssignments = data);
+    // Resume live location after the app was closed during a delivery.
+    final inTransit = data.where((o) => o['status'] == 'In the way').firstOrNull;
+    if (inTransit != null) {
+      _loc.startTrackingRider(inTransit['id'], widget.user.id);
+    } else {
+      _loc.stopTracking();
+    }
   }
 
   void _loadReports() async {
@@ -130,9 +155,7 @@ class _RiderDashboardState extends State<RiderDashboard> {
                                   ],
                                 ),
                                 const Divider(height: 24),
-                                Text('Destination: ${o['destination'] ?? 'Not Provided'}'),
-                                const SizedBox(height: 4),
-                                Text('Amount to Collect: PKR ${o['amount']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                                StaffOrderInfo(Map<String, dynamic>.from(o)),
                                 const SizedBox(height: 16),
                                 if (o['status'] == 'Dispatched')
                                   SizedBox(
@@ -149,7 +172,7 @@ class _RiderDashboardState extends State<RiderDashboard> {
                                   ),
                                 if (o['status'] == 'In the way') ...[
                                   TextField(
-                                    controller: _amountController,
+                                    controller: _amountFor(o),
                                     keyboardType: TextInputType.number,
                                     decoration: const InputDecoration(
                                       labelText: 'Final Cash Collected (PKR)',
@@ -161,12 +184,17 @@ class _RiderDashboardState extends State<RiderDashboard> {
                                     width: double.infinity,
                                     child: ElevatedButton.icon(
                                       onPressed: () async {
-                                        if (_amountController.text.isNotEmpty) {
-                                          _loc.stopTracking();
-                                          await OrderService.updateStatus(o['id'], 'Delivered', amount: double.parse(_amountController.text));
-                                          _amountController.clear();
-                                          _refresh();
+                                        final amount = double.tryParse(_amountFor(o).text.trim());
+                                        if (amount == null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Enter the total cash collected from the customer.')),
+                                          );
+                                          return;
                                         }
+                                        _loc.stopTracking();
+                                        await OrderService.updateStatus(o['id'], 'Delivered', amount: amount);
+                                        _amounts.remove(o['id'])?.dispose();
+                                        _refresh();
                                       },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: theme.colorScheme.secondary,

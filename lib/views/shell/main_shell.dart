@@ -6,9 +6,9 @@ import '../../utils/brand.dart';
 import '../account/account_view.dart';
 import '../cart/cart_view.dart';
 import '../common/login_required.dart';
-import '../customer/customer_dashboard.dart';
 import '../favorites/favorites_view.dart';
 import '../home/home_view.dart';
+import '../orders/my_orders_view.dart';
 
 /// Customer app frame: Home, My Orders, [Order Now], Favorites, My Account.
 class MainShell extends StatefulWidget {
@@ -45,7 +45,7 @@ class _MainShellState extends State<MainShell> {
     final user = state.user;
     final pages = [
       const HomeView(),
-      user == null ? const LoginRequired(titleKey: 'my_orders') : CustomerDashboard(key: ValueKey(user.id), user: user, embedded: true),
+      user == null ? const LoginRequired(titleKey: 'my_orders') : MyOrdersView(key: ValueKey(user.id)),
       user == null ? const LoginRequired(titleKey: 'favorites') : const FavoritesView(),
       const AccountView(),
     ];

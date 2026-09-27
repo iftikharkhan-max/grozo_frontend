@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../controllers/order_service.dart';
 import '../common/more_menu.dart';
+import '../staff/order_info.dart';
 
 class ManagerDashboard extends StatefulWidget {
   final UserModel user;
@@ -148,9 +149,11 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                   final o = _pool[idx];
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: ListTile(
-                      title: Text('Ref: ${o['tracking_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('Dest: ${o['destination'] ?? 'N/A'}'),
+                    child: ExpansionTile(
+                      title: Text('Ref: ${o['tracking_number']}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text('${o['customer_name'] ?? ''} • ${o['destination'] ?? 'N/A'}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       trailing: ElevatedButton(
                         onPressed: () async {
                           await OrderService.claimOrder(o['id'], widget.user.id);
@@ -158,6 +161,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                         },
                         child: const Text('Claim'),
                       ),
+                      children: [StaffOrderInfo(Map<String, dynamic>.from(o))],
                     ),
                   );
                 },
@@ -187,8 +191,9 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                             ],
                           ),
                           const Divider(),
-                          Text('Dest: ${o['destination']}'),
-                          Text('Amt: PKR ${o['amount']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          StaffOrderInfo(Map<String, dynamic>.from(o)),
+                          if (o['rider_name'] != null && o['rider_name'] != 'Unassigned')
+                            Padding(padding: const EdgeInsets.only(top: 4), child: Text('Rider: ${o['rider_name']}')),
                           const SizedBox(height: 10),
                           if (['order placed', 'with manager', 'claimed'].contains(o['status'].toString().toLowerCase())) ...[
                             if (_riders.isEmpty)

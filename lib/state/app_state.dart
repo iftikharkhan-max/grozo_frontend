@@ -35,6 +35,13 @@ class AppState extends ChangeNotifier {
   /// reload once the change is actually saved.
   int favoritesRevision = 0;
 
+  /// Bumped when an order is placed, cancelled or received, so "My Orders" reloads.
+  int ordersRevision = 0;
+  void ordersChanged() {
+    ordersRevision++;
+    notifyListeners();
+  }
+
   /// Set when the server ends the session; the UI shows a message once.
   bool sessionExpired = false;
 
@@ -130,6 +137,12 @@ class AppState extends ChangeNotifier {
     await _secure.delete(key: _kToken);
     await _secure.delete(key: _kUser);
     notifyListeners();
+  }
+
+  /// Stores a fresh token issued by the server (e.g. after a password change).
+  Future<void> replaceToken(String token) async {
+    Api.token = token;
+    await _secure.write(key: _kToken, value: token);
   }
 
   void setUser(UserModel updated) {

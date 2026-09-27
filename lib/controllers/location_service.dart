@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:grozo/utils/constants.dart';
+import 'package:grozo/services/api.dart';
 
 class LocationService {
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -22,10 +23,21 @@ class LocationService {
     return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
   }
 
-  /// Starts streaming live coordinates to the backend via WebSockets
-  void startTrackingRider(int orderId, int riderId) {
-    // Open connection to WebSocket server
-    _channel = WebSocketChannel.connect(Uri.parse(Config.wsUrl));
+  int? _trackingOrderId;
+  int? get trackingOrderId => _trackingOrderId;
+
+  /// Starts streaming live coordinates to the backend via WebSockets.
+  /// The server keeps only the latest position for the customer of [orderId].
+  Future<void> startTrackingRider(int orderId, int riderId) async {
+    if (_trackingOrderId == orderId) return;
+    stopTracking();
+    // Location permission is needed before the position stream can start.
+    if (await getCurrentLocation() == null) return;
+    _trackingOrderId = orderId;
+    final uri = Uri.parse(Config.wsUrl);
+    _channel = WebSocketChannel.connect(
+      Api.token == null ? uri : uri.replace(queryParameters: {'token': Api.token}),
+    );
 
     _positionStreamSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -53,5 +65,6 @@ class LocationService {
     _positionStreamSubscription = null;
     _channel?.sink.close();
     _channel = null;
+    _trackingOrderId = null;
   }
 }

@@ -5,9 +5,10 @@ import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../common/login_required.dart';
 import '../common/product_widgets.dart';
+import '../checkout/checkout_view.dart';
 
 /// Cart with quantity controls. The total shown here is an estimate from the
-/// last known prices; checkout (next update) gets the confirmed total from the server.
+/// last known prices; checkout gets the confirmed total from the server.
 class CartView extends StatelessWidget {
   const CartView({super.key});
 
@@ -27,16 +28,16 @@ class CartView extends StatelessWidget {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    content: const Text('Remove all items from your cart?'),
+                    content: Text(context.tr('clear_cart_q')),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
-                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Clear', style: TextStyle(color: Colors.red))),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.tr('clear'), style: const TextStyle(color: Colors.red))),
                     ],
                   ),
                 );
                 if (ok == true) state.clearCart();
               },
-              child: const Text('Clear', style: TextStyle(color: Colors.white)),
+              child: Text(context.tr('clear'), style: const TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -45,9 +46,9 @@ class CartView extends StatelessWidget {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.shopping_cart_outlined, size: 72, color: Colors.black26),
                 const SizedBox(height: 12),
-                const Text('Your cart is empty'),
+                Text(context.tr('cart_empty')),
                 const SizedBox(height: 16),
-                ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Start shopping')),
+                ElevatedButton(onPressed: () => Navigator.pop(context), child: Text(context.tr('start_shopping'))),
               ]),
             )
           : ListView.separated(
@@ -75,7 +76,7 @@ class CartView extends StatelessWidget {
                       ),
                       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                         IconButton(
-                          tooltip: 'Remove',
+                          tooltip: context.tr('remove'),
                           icon: const Icon(Icons.delete_outline, color: Colors.red),
                           onPressed: () => state.removeFromCart(p.id),
                         ),
@@ -94,12 +95,12 @@ class CartView extends StatelessWidget {
                 decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)]),
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text('Items total', style: TextStyle(fontSize: 16)),
+                    Text(context.tr('items_total'), style: const TextStyle(fontSize: 16)),
                     Text('Rs. ${money(state.cartEstimate)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandPrimary)),
                   ]),
-                  const Padding(
-                    padding: EdgeInsets.only(top: 4, bottom: 12),
-                    child: Text('Delivery charges are added at checkout.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 12),
+                    child: Text(context.tr('delivery_added_at_checkout'), style: const TextStyle(fontSize: 12, color: Colors.black54)),
                   ),
                   SizedBox(
                     width: double.infinity,
@@ -107,9 +108,9 @@ class CartView extends StatelessWidget {
                       onPressed: () async {
                         if (!state.isLoggedIn && !await openLogin(context)) return;
                         if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('coming_soon'))));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutView()));
                       },
-                      child: const Text('Proceed to checkout'),
+                      child: Text(context.tr('proceed_checkout')),
                     ),
                   ),
                 ]),

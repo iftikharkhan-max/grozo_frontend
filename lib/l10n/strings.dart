@@ -99,6 +99,121 @@ const Map<String, Map<String, String>> _strings = {
   'account_inactive': {'en': 'Account inactive', 'ur': 'اکاؤنٹ غیر فعال'},
   'contact_support': {'en': 'Contact support', 'ur': 'سپورٹ سے رابطہ کریں'},
 
+  // Cart
+  'cart_empty': {'en': 'Your cart is empty', 'ur': 'آپ کی کارٹ خالی ہے'},
+  'start_shopping': {'en': 'Start shopping', 'ur': 'خریداری شروع کریں'},
+  'clear': {'en': 'Clear', 'ur': 'صاف کریں'},
+  'clear_cart_q': {'en': 'Remove all items from your cart?', 'ur': 'کارٹ سے تمام اشیاء ہٹا دیں؟'},
+  'remove': {'en': 'Remove', 'ur': 'ہٹائیں'},
+  'items_total': {'en': 'Items total', 'ur': 'اشیاء کا کل'},
+  'delivery_added_at_checkout': {'en': 'Delivery charges are added at checkout.', 'ur': 'ڈیلیوری چارجز چیک آؤٹ پر شامل ہوں گے۔'},
+  'proceed_checkout': {'en': 'Proceed to checkout', 'ur': 'چیک آؤٹ کریں'},
+
+  // Checkout
+  'checkout': {'en': 'Checkout', 'ur': 'چیک آؤٹ'},
+  'your_details': {'en': 'Your details', 'ur': 'آپ کی معلومات'},
+  'delivery_address': {'en': 'Delivery address', 'ur': 'ڈیلیوری کا پتہ'},
+  'add_address': {'en': 'Add address', 'ur': 'پتہ شامل کریں'},
+  'change': {'en': 'Change', 'ur': 'تبدیل کریں'},
+  'payment_method': {'en': 'Payment method', 'ur': 'ادائیگی کا طریقہ'},
+  'cod': {'en': 'Cash on Delivery', 'ur': 'ڈیلیوری پر نقد ادائیگی'},
+  'cod_sub': {'en': 'Pay the rider in cash when your order arrives.', 'ur': 'آرڈر ملنے پر رائیڈر کو نقد ادائیگی کریں۔'},
+  'note_for_rider': {'en': 'Note for us (optional)', 'ur': 'ہمارے لیے نوٹ (اختیاری)'},
+  'order_summary': {'en': 'Order summary', 'ur': 'آرڈر کا خلاصہ'},
+  'subtotal': {'en': 'Subtotal', 'ur': 'ذیلی کل'},
+  'discount': {'en': 'Discount', 'ur': 'رعایت'},
+  'delivery_charge': {'en': 'Delivery charge', 'ur': 'ڈیلیوری چارج'},
+  'to_be_confirmed': {'en': 'Confirmed on delivery', 'ur': 'ڈیلیوری پر طے ہوگا'},
+  'total_payable': {'en': 'Total payable', 'ur': 'کل قابلِ ادائیگی'},
+  'confirm_order': {'en': 'Confirm order', 'ur': 'آرڈر کی تصدیق کریں'},
+  'placing_order': {'en': 'Placing your order…', 'ur': 'آپ کا آرڈر دیا جا رہا ہے…'},
+  'need_address': {'en': 'Please add a delivery address.', 'ur': 'براہ کرم ڈیلیوری کا پتہ شامل کریں۔'},
+  'need_mobile': {'en': 'Please enter your mobile number.', 'ur': 'براہ کرم اپنا موبائل نمبر درج کریں۔'},
+  'cart_changed': {'en': 'Some items in your cart changed. Please review before confirming.', 'ur': 'آپ کی کارٹ میں کچھ اشیاء تبدیل ہو گئی ہیں۔ براہ کرم تصدیق سے پہلے دیکھ لیں۔'},
+  'prices_changed': {'en': 'Prices have changed. Please check the new total.', 'ur': 'قیمتیں تبدیل ہو گئی ہیں۔ براہ کرم نیا کل دیکھ لیں۔'},
+  'problem_unavailable': {'en': 'is no longer available', 'ur': 'اب دستیاب نہیں'},
+  'problem_stock': {'en': 'only {n} left', 'ur': 'صرف {n} باقی'},
+  'problem_max': {'en': 'maximum {n} per order', 'ur': 'فی آرڈر زیادہ سے زیادہ {n}'},
+  'fix_cart': {'en': 'Update my cart', 'ur': 'میری کارٹ درست کریں'},
+  'outside_area': {'en': 'Sorry, this address is outside our delivery area.', 'ur': 'معذرت، یہ پتہ ہمارے ڈیلیوری علاقے سے باہر ہے۔'},
+  'order_failed': {'en': 'Your order could not be placed. Please try again.', 'ur': 'آپ کا آرڈر نہیں دیا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔'},
+
+  // Confirmation
+  'order_placed_title': {'en': 'Order placed!', 'ur': 'آرڈر دے دیا گیا!'},
+  'order_placed_body': {'en': 'Thank you. We have received your order and will confirm it shortly.', 'ur': 'شکریہ۔ ہمیں آپ کا آرڈر مل گیا ہے، ہم جلد تصدیق کریں گے۔'},
+  'order_number': {'en': 'Order number', 'ur': 'آرڈر نمبر'},
+  'order_date': {'en': 'Date', 'ur': 'تاریخ'},
+  'view_order': {'en': 'View order', 'ur': 'آرڈر دیکھیں'},
+  'continue_shopping': {'en': 'Continue shopping', 'ur': 'خریداری جاری رکھیں'},
+
+  // Orders
+  'current_orders': {'en': 'Current', 'ur': 'جاری'},
+  'past_orders': {'en': 'Past', 'ur': 'پچھلے'},
+  'no_current_orders': {'en': 'You have no orders in progress.', 'ur': 'آپ کا کوئی آرڈر جاری نہیں۔'},
+  'no_past_orders': {'en': 'No previous orders yet.', 'ur': 'ابھی تک کوئی پچھلا آرڈر نہیں۔'},
+  'order': {'en': 'Order', 'ur': 'آرڈر'},
+  'items': {'en': 'Items', 'ur': 'اشیاء'},
+  'status': {'en': 'Status', 'ur': 'صورتحال'},
+  'step_placed': {'en': 'Order placed', 'ur': 'آرڈر دیا گیا'},
+  'step_confirmed': {'en': 'Confirmed – being prepared', 'ur': 'تصدیق شدہ – تیار ہو رہا ہے'},
+  'step_rider': {'en': 'Rider assigned', 'ur': 'رائیڈر مقرر'},
+  'step_out': {'en': 'Out for delivery', 'ur': 'ڈیلیوری کے لیے روانہ'},
+  'step_delivered': {'en': 'Delivered', 'ur': 'پہنچا دیا گیا'},
+  'step_completed': {'en': 'Completed', 'ur': 'مکمل'},
+  'step_cancelled': {'en': 'Cancelled', 'ur': 'منسوخ'},
+  'cancel_order': {'en': 'Cancel order', 'ur': 'آرڈر منسوخ کریں'},
+  'cancel_order_q': {'en': 'Cancel this order?', 'ur': 'کیا یہ آرڈر منسوخ کریں؟'},
+  'order_cancelled': {'en': 'Your order has been cancelled.', 'ur': 'آپ کا آرڈر منسوخ ہو گیا ہے۔'},
+  'keep_order': {'en': 'Keep order', 'ur': 'آرڈر رکھیں'},
+  'mark_received': {'en': 'I received my order', 'ur': 'مجھے آرڈر مل گیا'},
+  'reorder': {'en': 'Reorder', 'ur': 'دوبارہ آرڈر کریں'},
+  'reorder_done': {'en': '{n} item(s) added to your cart with today\'s prices.', 'ur': '{n} اشیاء آج کی قیمتوں کے ساتھ کارٹ میں شامل ہو گئیں۔'},
+  'reorder_some_missing': {'en': 'Some items are no longer available and were not added: {names}', 'ur': 'کچھ اشیاء دستیاب نہیں تھیں اس لیے شامل نہیں ہوئیں: {names}'},
+  'your_list': {'en': 'Your shopping list', 'ur': 'آپ کی خریداری کی فہرست'},
+  'rider': {'en': 'Rider', 'ur': 'رائیڈر'},
+  'call_rider': {'en': 'Call rider', 'ur': 'رائیڈر کو کال کریں'},
+  'rider_on_map': {'en': 'See rider on map', 'ur': 'رائیڈر نقشے پر دیکھیں'},
+  'rider_updated': {'en': 'Location updated {t}', 'ur': 'مقام اپ ڈیٹ {t}'},
+  'deliver_to': {'en': 'Deliver to', 'ur': 'ترسیل کا پتہ'},
+  'final_bill_note': {'en': 'The final bill is confirmed when your order is delivered.', 'ur': 'حتمی بل آرڈر کی ترسیل پر طے ہوگا۔'},
+
+  // Market request
+  'market_request_title': {'en': 'Tell us what you need', 'ur': 'ہمیں بتائیں آپ کو کیا چاہیے'},
+  'market_request_hint': {'en': 'e.g.\n2 kg potatoes\n1 dozen eggs\n1 packet Tapal tea (190 g)', 'ur': 'مثلاً\n2 کلو آلو\n1 درجن انڈے\n1 پیکٹ تاپال چائے'},
+  'market_request_info': {'en': 'We buy these from the market and deliver them to you. You pay the actual price plus delivery, in cash, when the order arrives.', 'ur': 'ہم یہ اشیاء بازار سے خرید کر آپ تک پہنچائیں گے۔ آرڈر ملنے پر اصل قیمت اور ڈیلیوری چارج نقد ادا کریں۔'},
+  'market_request_empty': {'en': 'Please write what you would like us to buy.', 'ur': 'براہ کرم لکھیں کہ ہم آپ کے لیے کیا خریدیں۔'},
+  'send_request': {'en': 'Send my list', 'ur': 'میری فہرست بھیجیں'},
+  'write_list': {'en': 'Write your shopping list', 'ur': 'اپنی خریداری کی فہرست لکھیں'},
+
+  // Addresses
+  'addresses': {'en': 'My addresses', 'ur': 'میرے پتے'},
+  'no_addresses': {'en': 'You have no saved addresses yet.', 'ur': 'آپ کا کوئی محفوظ پتہ نہیں۔'},
+  'address_label': {'en': 'Label (e.g. Home, Office)', 'ur': 'نام (مثلاً گھر، دفتر)'},
+  'address_line': {'en': 'House, street, area', 'ur': 'مکان، گلی، علاقہ'},
+  'city': {'en': 'City', 'ur': 'شہر'},
+  'use_my_location': {'en': 'Use my current location', 'ur': 'میرا موجودہ مقام استعمال کریں'},
+  'location_saved': {'en': 'Map location saved – delivery charge will be calculated automatically.', 'ur': 'نقشے پر مقام محفوظ – ڈیلیوری چارج خودکار طور پر لگے گا۔'},
+  'location_missing': {'en': 'No map location – the delivery charge will be confirmed by the rider.', 'ur': 'نقشے پر مقام نہیں – ڈیلیوری چارج رائیڈر طے کرے گا۔'},
+  'location_denied': {'en': 'Location permission is off. You can still save the address without it.', 'ur': 'مقام کی اجازت بند ہے۔ آپ اس کے بغیر بھی پتہ محفوظ کر سکتے ہیں۔'},
+  'location_off': {'en': 'Please turn on location (GPS) on your phone.', 'ur': 'براہ کرم فون میں لوکیشن (GPS) آن کریں۔'},
+  'default_address': {'en': 'Default', 'ur': 'بنیادی'},
+  'make_default': {'en': 'Make default', 'ur': 'بنیادی بنائیں'},
+  'edit': {'en': 'Edit', 'ur': 'ترمیم'},
+  'delete': {'en': 'Delete', 'ur': 'حذف کریں'},
+  'delete_address_q': {'en': 'Delete this address?', 'ur': 'کیا یہ پتہ حذف کریں؟'},
+
+  // Profile
+  'profile': {'en': 'Profile', 'ur': 'پروفائل'},
+  'profile_saved': {'en': 'Profile saved.', 'ur': 'پروفائل محفوظ ہو گیا۔'},
+  'change_password': {'en': 'Change password', 'ur': 'پاس ورڈ تبدیل کریں'},
+  'current_password': {'en': 'Current password', 'ur': 'موجودہ پاس ورڈ'},
+  'new_password': {'en': 'New password (min. 6 characters)', 'ur': 'نیا پاس ورڈ (کم از کم 6 حروف)'},
+  'password_changed': {'en': 'Password changed.', 'ur': 'پاس ورڈ تبدیل ہو گیا۔'},
+  'delete_account': {'en': 'Delete my account', 'ur': 'میرا اکاؤنٹ حذف کریں'},
+  'delete_account_q': {'en': 'Delete your account? You will not be able to log in again. Your past orders are kept for our records.', 'ur': 'کیا اکاؤنٹ حذف کریں؟ آپ دوبارہ لاگ ان نہیں کر سکیں گے۔ پچھلے آرڈرز ہمارے ریکارڈ میں رہیں گے۔'},
+  'account_deleted': {'en': 'Your account has been deleted.', 'ur': 'آپ کا اکاؤنٹ حذف ہو گیا ہے۔'},
+  'security': {'en': 'Security', 'ur': 'سیکیورٹی'},
+
   // Branch / info
   'branch_not_set': {'en': 'Branch details will be available soon.', 'ur': 'برانچ کی تفصیلات جلد دستیاب ہوں گی۔'},
   'open_in_maps': {'en': 'Get directions in Google Maps', 'ur': 'گوگل میپس میں راستہ دیکھیں'},
@@ -120,7 +235,19 @@ extension Tr on BuildContext {
   }
 
   String get lang => Localizations.maybeLocaleOf(this)?.languageCode ?? 'en';
+
+  /// Translation with `{name}` placeholders filled in.
+  String trf(String key, Map<String, Object> values) {
+    var s = tr(key);
+    values.forEach((k, v) => s = s.replaceAll('{$k}', '$v'));
+    return s;
+  }
 }
+
+/// Short date + time, e.g. 27/9/2026 14:05.
+String formatDateTime(DateTime? d) => d == null
+    ? ''
+    : '${d.day}/${d.month}/${d.year}  ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
 /// Maps an [ApiResult]-style error into a customer-friendly message.
 String friendlyError(BuildContext context, {String? errorCode, String? serverMessage}) {
