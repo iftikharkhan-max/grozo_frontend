@@ -167,6 +167,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // Ends the session on the server; logout on this phone happens even offline.
     if (Api.token != null) await Api.post('/auth/logout');
     await signOutLocally();
   }
@@ -183,9 +184,17 @@ class AppState extends ChangeNotifier {
     user = null;
     favoriteIds.clear();
     unreadNotifications = 0;
-    await _secure.delete(key: _kToken);
-    await _secure.delete(key: _kUser);
     notifyListeners();
+    // Some Android keystores fail on delete; the session is already gone in
+    // memory, so clear everything we can and never let this break logout.
+    try {
+      await _secure.delete(key: _kToken);
+      await _secure.delete(key: _kUser);
+    } catch (_) {
+      try {
+        await _secure.deleteAll();
+      } catch (_) {}
+    }
   }
 
   /// Stores a fresh token issued by the server (e.g. after a password change).

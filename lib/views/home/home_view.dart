@@ -19,10 +19,17 @@ class HomeData {
 
   HomeData.fromJson(Map<String, dynamic> j)
       : banners = List<Map<String, dynamic>>.from(j['banners'] ?? []),
-        featured = (j['featured_categories'] as List? ?? []).map((c) => Category.fromJson(c)).toList(),
-        market = (j['market_categories'] as List? ?? []).map((c) => Category.fromJson(c)).toList(),
-        discounted = (j['discounted_products'] as List? ?? []).map((p) => Product.fromJson(p)).toList(),
-        deliveryCharges = List<Map<String, dynamic>>.from(j['delivery_charges'] ?? []);
+        featured = (j['featured_categories'] as List? ?? [])
+            .map((c) => Category.fromJson(c))
+            .toList(),
+        market = (j['market_categories'] as List? ?? [])
+            .map((c) => Category.fromJson(c))
+            .toList(),
+        discounted = (j['discounted_products'] as List? ?? [])
+            .map((p) => Product.fromJson(p))
+            .toList(),
+        deliveryCharges =
+            List<Map<String, dynamic>>.from(j['delivery_charges'] ?? []);
 }
 
 /// Home page (the header and footer come from MainShell).
@@ -58,7 +65,8 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
-  void _openCategory(Category c) => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductListView(category: c)));
+  void _openCategory(Category c) => Navigator.push(
+      context, MaterialPageRoute(builder: (_) => ProductListView(category: c)));
 
   @override
   Widget build(BuildContext context) {
@@ -70,14 +78,18 @@ class _HomeViewState extends State<HomeView> {
           slivers: [
             const SliverToBoxAdapter(child: _SearchBar()),
             if (_loading)
-              const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
+              const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()))
             else if (_data == null)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: _ErrorState(errorCode: _errorCode, onRetry: () {
-                  setState(() => _loading = true);
-                  _load();
-                }),
+                child: _ErrorState(
+                    errorCode: _errorCode,
+                    onRetry: () {
+                      setState(() => _loading = true);
+                      _load();
+                    }),
               )
             else
               SliverPadding(
@@ -93,23 +105,35 @@ class _HomeViewState extends State<HomeView> {
   List<Widget> _sections(HomeData d) {
     const gap = SizedBox(height: 12);
     return [
-      _PromoCarousel(banners: d.banners, onCategory: (id) {
-        final c = [...d.featured, ...d.market].where((c) => c.id == id).firstOrNull;
-        if (c != null) _openCategory(c);
-      }),
+      _PromoCarousel(
+          banners: d.banners,
+          onCategory: (id) {
+            final c = [...d.featured, ...d.market]
+                .where((c) => c.id == id)
+                .firstOrNull;
+            if (c != null) _openCategory(c);
+          }),
       gap,
       if (d.featured.isNotEmpty) ...[
         Row(children: [
           for (final (i, c) in d.featured.take(2).indexed) ...[
             if (i > 0) const SizedBox(width: 10),
-            Expanded(child: _FeaturedCategoryCard(category: c, yellow: i.isOdd, onTap: () => _openCategory(c))),
+            Expanded(
+                child: _FeaturedCategoryCard(
+                    category: c,
+                    yellow: i.isOdd,
+                    onTap: () => _openCategory(c))),
           ],
         ]),
         gap,
       ],
-      _MarketShopping(categories: d.market, tiers: d.deliveryCharges, onTap: _openCategory),
+      _MarketShopping(
+          categories: d.market, tiers: d.deliveryCharges, onTap: _openCategory),
       gap,
-      if (d.discounted.isNotEmpty) ...[_DealsStrip(products: d.discounted), gap],
+      if (d.discounted.isNotEmpty) ...[
+        _DealsStrip(products: d.discounted),
+        gap
+      ],
       const _TrustRow(),
     ];
   }
@@ -128,13 +152,19 @@ class _SearchBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(26),
         child: InkWell(
           borderRadius: BorderRadius.circular(26),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductListView(searchMode: true))),
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const ProductListView(searchMode: true))),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
             child: Row(children: [
               const Icon(Icons.search, color: Colors.black87),
               const SizedBox(width: 10),
-              Expanded(child: Text(context.tr('search_hint'), style: const TextStyle(color: Colors.black45, fontSize: 15))),
+              Expanded(
+                  child: Text(context.tr('search_hint'),
+                      style: const TextStyle(
+                          color: Colors.black45, fontSize: 15))),
             ]),
           ),
         ),
@@ -159,7 +189,8 @@ class _PromoCarouselState extends State<_PromoCarousel> {
   Timer? _timer;
   int _page = 0;
 
-  int get _count => widget.banners.length + 1; // +1 for the built-in "Order Anything" card
+  int get _count =>
+      widget.banners.length + 1; // +1 for the built-in "Order Anything" card
 
   @override
   void initState() {
@@ -167,7 +198,9 @@ class _PromoCarouselState extends State<_PromoCarousel> {
     if (_count > 1) {
       _timer = Timer.periodic(const Duration(seconds: 5), (_) {
         if (_controller.hasClients) {
-          _controller.animateToPage((_page + 1) % _count, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+          _controller.animateToPage((_page + 1) % _count,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOut);
         }
       });
     }
@@ -181,7 +214,9 @@ class _PromoCarouselState extends State<_PromoCarousel> {
   }
 
   void _openBanner(Map<String, dynamic> b) {
-    final linkId = b['link_id'] is int ? b['link_id'] as int : int.tryParse('${b['link_id']}');
+    final linkId = b['link_id'] is int
+        ? b['link_id'] as int
+        : int.tryParse('${b['link_id']}');
     if (b['link_type'] == 'category' && linkId != null) {
       widget.onCategory(linkId);
     } else if (b['link_type'] == 'product' && linkId != null) {
@@ -195,24 +230,41 @@ class _PromoCarouselState extends State<_PromoCarousel> {
 
   void _showBannerDetails(Map<String, dynamic> b) {
     final ur = context.lang == 'ur';
-    String? pickLang(String key) => (ur && (b['${key}_ur'] ?? '').toString().isNotEmpty ? b['${key}_ur'] : b[key])?.toString();
+    String? pickLang(String key) =>
+        (ur && (b['${key}_ur'] ?? '').toString().isNotEmpty
+                ? b['${key}_ur']
+                : b[key])
+            ?.toString();
     final ends = DateTime.tryParse('${b['ends_at']}')?.toLocal();
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(pickLang('title') ?? '', style: Theme.of(context).textTheme.titleLarge),
-          if (pickLang('subtitle') != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(pickLang('subtitle')!)),
-          if (ends != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text('Valid until ${ends.day}/${ends.month}/${ends.year}', style: const TextStyle(color: brandAccent)),
-            ),
-          if ((b['terms'] ?? '').toString().isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 12), child: Text(b['terms'], style: const TextStyle(fontSize: 12, color: Colors.black54))),
-        ]),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(pickLang('title') ?? '',
+                  style: Theme.of(context).textTheme.titleLarge),
+              if (pickLang('subtitle') != null)
+                Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(pickLang('subtitle')!)),
+              if (ends != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                      'Valid until ${ends.day}/${ends.month}/${ends.year}',
+                      style: const TextStyle(color: brandAccent)),
+                ),
+              if ((b['terms'] ?? '').toString().isNotEmpty)
+                Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(b['terms'],
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black54))),
+            ]),
       ),
     );
   }
@@ -229,7 +281,9 @@ class _PromoCarouselState extends State<_PromoCarousel> {
           onPageChanged: (i) => setState(() => _page = i),
           itemBuilder: (ctx, i) => i == 0
               ? const _OrderAnythingCard()
-              : _BannerCard(banner: widget.banners[i - 1], onTap: () => _openBanner(widget.banners[i - 1])),
+              : _BannerCard(
+                  banner: widget.banners[i - 1],
+                  onTap: () => _openBanner(widget.banners[i - 1])),
         ),
       ),
       if (_count > 1)
@@ -237,13 +291,17 @@ class _PromoCarouselState extends State<_PromoCarousel> {
           padding: const EdgeInsets.only(top: 5),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(_count, (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: i == _page ? 16 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(color: i == _page ? brandGreen : Colors.black26, borderRadius: BorderRadius.circular(3)),
-                )),
+            children: List.generate(
+                _count,
+                (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: i == _page ? 16 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                          color: i == _page ? brandGreen : Colors.black26,
+                          borderRadius: BorderRadius.circular(3)),
+                    )),
           ),
         ),
     ]);
@@ -258,18 +316,31 @@ class _OrderAnythingCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(colors: [Color(0xFFEAF7E4), Color(0xFFFFF6D8)]),
+        gradient: const LinearGradient(
+            colors: [Color(0xFFEAF7E4), Color(0xFFFFF6D8)]),
         border: Border.all(color: brandGreen.withValues(alpha: 0.25)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(children: [
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-            FittedBox(
-              child: Text(context.tr('hero_title'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: brandPrimary)),
-            ),
-            Text(context.tr('hero_sub'), maxLines: 2, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: brandPrimary)),
-          ]),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FittedBox(
+                  child: Text(context.tr('hero_title'),
+                      style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: brandPrimary)),
+                ),
+                Text(context.tr('hero_sub'),
+                    maxLines: 2,
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: brandPrimary)),
+              ]),
         ),
         const SizedBox(width: 8),
         ElevatedButton.icon(
@@ -279,9 +350,11 @@ class _OrderAnythingCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             shape: const StadiumBorder(),
           ),
-          onPressed: () => showOrderOptions(context, open: (p) => MainShell.push(context, p)),
+          onPressed: () => showOrderOptions(context,
+              open: (p) => MainShell.push(context, p)),
           icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-          label: Text(context.tr('order_now'), style: const TextStyle(fontWeight: FontWeight.bold)),
+          label: Text(context.tr('order_now'),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
       ]),
     );
@@ -296,7 +369,11 @@ class _BannerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ur = context.lang == 'ur';
-    String? pick(String key) => (ur && (banner['${key}_ur'] ?? '').toString().isNotEmpty ? banner['${key}_ur'] : banner[key])?.toString();
+    String? pick(String key) =>
+        (ur && (banner['${key}_ur'] ?? '').toString().isNotEmpty
+                ? banner['${key}_ur']
+                : banner[key])
+            ?.toString();
     final hasImage = (banner['image_url'] ?? '').toString().isNotEmpty;
 
     return Padding(
@@ -310,12 +387,24 @@ class _BannerCard extends StatelessWidget {
           child: hasImage
               ? NetImage(banner['image_url'])
               : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(pick('title') ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: brandPrimary)),
-                    if (pick('subtitle') != null) Text(pick('subtitle')!, maxLines: 2, style: const TextStyle(fontSize: 12.5)),
-                  ]),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(pick('title') ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
+                                color: brandPrimary)),
+                        if (pick('subtitle') != null)
+                          Text(pick('subtitle')!,
+                              maxLines: 2,
+                              style: const TextStyle(fontSize: 12.5)),
+                      ]),
                 ),
         ),
       ),
@@ -329,12 +418,15 @@ class _FeaturedCategoryCard extends StatelessWidget {
   final Category category;
   final bool yellow;
   final VoidCallback onTap;
-  const _FeaturedCategoryCard({required this.category, required this.yellow, required this.onTap});
+  const _FeaturedCategoryCard(
+      {required this.category, required this.yellow, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final lang = context.lang;
-    final other = lang == 'ur' ? category.name : category.nameUr; // design shows both languages
+    final other = lang == 'ur'
+        ? category.name
+        : category.nameUr; // design shows both languages
     return Material(
       color: yellow ? brandYellowLight : brandGreenLight,
       borderRadius: BorderRadius.circular(14),
@@ -346,27 +438,50 @@ class _FeaturedCategoryCard extends StatelessWidget {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: (yellow ? brandYellow : brandGreen).withValues(alpha: 0.5)),
+            border: Border.all(
+                color:
+                    (yellow ? brandYellow : brandGreen).withValues(alpha: 0.5)),
           ),
           child: Row(children: [
             SizedBox(
               width: 52,
               height: 52,
-              child: ClipRRect(borderRadius: BorderRadius.circular(8), child: NetImage(category.imageUrl, fallbackEmoji: categoryEmoji(category.name))),
+              child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: NetImage(category.imageUrl,
+                      fallbackEmoji: categoryEmoji(category.name))),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text(category.displayName(lang),
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: brandPrimary)),
-                if ((other ?? '').isNotEmpty)
-                  Text(other!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, color: brandPrimary)),
-                if (category.displaySubtitle(lang) != null)
-                  Text(category.displaySubtitle(lang)!,
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: yellow ? brandAccent : brandGreen)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(category.displayName(lang),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: brandPrimary)),
+                    if ((other ?? '').isNotEmpty)
+                      Text(other!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: brandPrimary)),
+                    if (category.displaySubtitle(lang) != null)
+                      Text(category.displaySubtitle(lang)!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: yellow ? brandAccent : brandGreen)),
+                  ]),
             ),
-            Icon(Icons.chevron_right, color: yellow ? brandAccent : brandGreen, textDirection: Directionality.of(context)),
+            Icon(Icons.chevron_right,
+                color: yellow ? brandAccent : brandGreen,
+                textDirection: Directionality.of(context)),
           ]),
         ),
       ),
@@ -378,12 +493,14 @@ class _MarketShopping extends StatelessWidget {
   final List<Category> categories;
   final List<Map<String, dynamic>> tiers;
   final ValueChanged<Category> onTap;
-  const _MarketShopping({required this.categories, required this.tiers, required this.onTap});
+  const _MarketShopping(
+      {required this.categories, required this.tiers, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final lang = context.lang;
-    Widget pill(IconData icon, String label, VoidCallback onPressed) => OutlinedButton.icon(
+    Widget pill(IconData icon, String label, VoidCallback onPressed) =>
+        OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white,
             backgroundColor: brandGreen,
@@ -403,35 +520,61 @@ class _MarketShopping extends StatelessWidget {
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
             child: InkWell(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketView())),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.storefront, color: brandPrimary, size: 26),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(context.tr('market_shopping'),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: brandPrimary)),
-                  ),
-                ]),
-                const SizedBox(height: 4),
-                Text(context.tr('market_shopping_sub'), style: const TextStyle(fontSize: 12, color: Colors.black87)),
-              ]),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const MarketView())),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.storefront,
+                          color: brandPrimary, size: 26),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(context.tr('market_shopping'),
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: brandPrimary)),
+                      ),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(context.tr('market_shopping_sub'),
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black87)),
+                  ]),
             ),
           ),
           const SizedBox(width: 6),
           // "Delivery Charges" sits below "How it works", as specified.
-          Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-            pill(Icons.info_outline, context.tr('how_it_works'), () => showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text(context.tr('how_it_works')),
-                    content: Text(context.tr('how_it_works_body')),
-                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('ok')))],
-                  ),
-                )),
-            const SizedBox(height: 4),
-            pill(Icons.local_shipping_outlined, context.tr('delivery_charges'), () => showDeliveryCharges(context, tiers)),
-          ]),
+          // IntrinsicWidth gives both buttons the width of the wider one; without
+          // it, "stretch" inside a Row asks for infinite width and the page fails.
+          IntrinsicWidth(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  pill(
+                      Icons.info_outline,
+                      context.tr('how_it_works'),
+                      () => showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text(context.tr('how_it_works')),
+                              content: Text(context.tr('how_it_works_body')),
+                              actions: [
+                                TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: Text(context.tr('ok')))
+                              ],
+                            ),
+                          )),
+                  const SizedBox(height: 4),
+                  pill(
+                      Icons.local_shipping_outlined,
+                      context.tr('delivery_charges'),
+                      () => showDeliveryCharges(context, tiers)),
+                ]),
+          ),
         ]),
         const SizedBox(height: 8),
         SizedBox(
@@ -446,14 +589,16 @@ class _MarketShopping extends StatelessWidget {
                 return _Tile(
                   label: context.tr('not_in_list'),
                   onTap: () => showAddCustomItem(context),
-                  child: const Icon(Icons.add_shopping_cart, color: brandAccent, size: 34),
+                  child: const Icon(Icons.add_shopping_cart,
+                      color: brandAccent, size: 34),
                 );
               }
               final c = categories[i];
               return _Tile(
                 label: c.displayName(lang),
                 onTap: () => onTap(c),
-                child: NetImage(c.imageUrl, fit: BoxFit.contain, fallbackEmoji: categoryEmoji(c.name)),
+                child: NetImage(c.imageUrl,
+                    fit: BoxFit.contain, fallbackEmoji: categoryEmoji(c.name)),
               );
             },
           ),
@@ -483,7 +628,11 @@ class _Tile extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               child: Column(children: [
                 Expanded(child: Center(child: child)),
-                Text(label, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(label,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600)),
               ]),
             ),
           ),
@@ -492,7 +641,8 @@ class _Tile extends StatelessWidget {
 }
 
 /// Delivery charges chart (opened from Market Shopping).
-void showDeliveryCharges(BuildContext context, List<Map<String, dynamic>> tiers) {
+void showDeliveryCharges(
+    BuildContext context, List<Map<String, dynamic>> tiers) {
   String num(dynamic v) {
     final d = double.tryParse('$v') ?? 0;
     return d == d.roundToDouble() ? d.toStringAsFixed(0) : d.toString();
@@ -500,7 +650,9 @@ void showDeliveryCharges(BuildContext context, List<Map<String, dynamic>> tiers)
 
   Widget cell(String text, {bool bold = false}) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Text(text, style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+        child: Text(text,
+            style: TextStyle(
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
       );
 
   showDialog(
@@ -509,24 +661,35 @@ void showDeliveryCharges(BuildContext context, List<Map<String, dynamic>> tiers)
       title: Row(children: [
         const Icon(Icons.local_shipping_outlined, color: brandGreen),
         const SizedBox(width: 8),
-        Text(context.tr('delivery_charges')),
+        Flexible(child: Text(context.tr('delivery_charges'))),
       ]),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         Table(
-          border: TableBorder.all(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
+          border: TableBorder.all(
+              color: Colors.black12, borderRadius: BorderRadius.circular(8)),
           children: [
             TableRow(
               decoration: const BoxDecoration(color: brandGreenLight),
-              children: [cell(context.tr('distance_km'), bold: true), cell(context.tr('charge_rs'), bold: true)],
+              children: [
+                cell(context.tr('distance_km'), bold: true),
+                cell(context.tr('charge_rs'), bold: true)
+              ],
             ),
             for (final t in tiers)
-              TableRow(children: [cell('${num(t['min_km'])} – ${num(t['max_km'])} KM'), cell('Rs. ${num(t['charge'])}', bold: true)]),
+              TableRow(children: [
+                cell('${num(t['min_km'])} – ${num(t['max_km'])} KM'),
+                cell('Rs. ${num(t['charge'])}', bold: true)
+              ]),
           ],
         ),
         const SizedBox(height: 10),
-        Text(context.tr('delivery_note'), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        Text(context.tr('delivery_note'),
+            style: const TextStyle(fontSize: 12, color: Colors.black54)),
       ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('ok')))],
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: Text(context.tr('ok')))
+      ],
     ),
   );
 }
@@ -545,7 +708,11 @@ class _DealsStrip extends StatelessWidget {
         Row(children: [
           const Icon(Icons.local_offer, color: brandAccent, size: 20),
           const SizedBox(width: 6),
-          Text(context.tr('deals_discounts'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: brandPrimary)),
+          Text(context.tr('deals_discounts'),
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: brandPrimary)),
         ]),
         const SizedBox(height: 6),
         SizedBox(
@@ -584,7 +751,11 @@ class _TrustRow extends StatelessWidget {
               child: Column(children: [
                 Icon(icon, color: brandGreen),
                 const SizedBox(height: 4),
-                Text(context.tr(key), textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600)),
+                Text(context.tr(key),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: const TextStyle(
+                        fontSize: 10.5, fontWeight: FontWeight.w600)),
               ]),
             ),
         ],
@@ -598,12 +769,19 @@ class _Panel extends StatelessWidget {
   final Color color;
   final Color borderColor;
   final EdgeInsets padding;
-  const _Panel({required this.child, required this.color, required this.borderColor, this.padding = const EdgeInsets.all(12)});
+  const _Panel(
+      {required this.child,
+      required this.color,
+      required this.borderColor,
+      this.padding = const EdgeInsets.all(12)});
 
   @override
   Widget build(BuildContext context) => Container(
         padding: padding,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(14), border: Border.all(color: borderColor)),
+        decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor)),
         child: child,
       );
 }
@@ -618,9 +796,14 @@ class _ErrorState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(errorCode == 'network' ? Icons.wifi_off : Icons.cloud_off, size: 56, color: Colors.black38),
+        Icon(errorCode == 'network' ? Icons.wifi_off : Icons.cloud_off,
+            size: 56, color: Colors.black38),
         const SizedBox(height: 12),
-        Text(errorCode == 'network' ? context.tr('err_network') : context.tr('err_home'), textAlign: TextAlign.center),
+        Text(
+            errorCode == 'network'
+                ? context.tr('err_network')
+                : context.tr('err_home'),
+            textAlign: TextAlign.center),
         const SizedBox(height: 16),
         ElevatedButton(onPressed: onRetry, child: Text(context.tr('retry'))),
       ]),

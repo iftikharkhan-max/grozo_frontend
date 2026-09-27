@@ -58,7 +58,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           if ((_p.unit ?? '').isNotEmpty) Text(_p.unit!, style: const TextStyle(color: Colors.black54)),
           const SizedBox(height: 8),
           Row(children: [
-            PriceText(_p, fontSize: 22),
+            Flexible(child: PriceText(_p, fontSize: 22)),
             if (_p.hasDiscount) ...[
               const SizedBox(width: 8),
               Container(

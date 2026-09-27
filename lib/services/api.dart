@@ -27,6 +27,9 @@ class Api {
 
   static const _timeout = Duration(seconds: 30);
 
+  /// HTTP client; tests replace it with a fake that replays recorded responses.
+  static http.Client client = http.Client();
+
   /// Headers for callers that still use `http` directly (staff screens).
   static Map<String, String> get jsonHeaders => {
         'Content-Type': 'application/json',
@@ -41,16 +44,16 @@ class Api {
       Uri.parse('${Config.baseUrl}$path').replace(queryParameters: query);
 
   static Future<ApiResult> get(String path, {Map<String, String>? query}) =>
-      _send(() => http.get(_uri(path, query), headers: jsonHeaders));
+      _send(() => client.get(_uri(path, query), headers: jsonHeaders));
 
   static Future<ApiResult> post(String path, [Object? body]) =>
-      _send(() => http.post(_uri(path), headers: jsonHeaders, body: jsonEncode(body ?? {})));
+      _send(() => client.post(_uri(path), headers: jsonHeaders, body: jsonEncode(body ?? {})));
 
   static Future<ApiResult> put(String path, [Object? body]) =>
-      _send(() => http.put(_uri(path), headers: jsonHeaders, body: jsonEncode(body ?? {})));
+      _send(() => client.put(_uri(path), headers: jsonHeaders, body: jsonEncode(body ?? {})));
 
   static Future<ApiResult> delete(String path) =>
-      _send(() => http.delete(_uri(path), headers: jsonHeaders));
+      _send(() => client.delete(_uri(path), headers: jsonHeaders));
 
   /// Sends form fields plus an optional image (multipart), e.g. product with photo.
   /// Null field values are sent as empty strings, which the server stores as "not set".
@@ -60,7 +63,7 @@ class Api {
         ..headers.addAll(authHeaders)
         ..fields.addAll(fields.map((k, v) => MapEntry(k, v == null ? '' : v.toString())));
       if (image != null) req.files.add(await http.MultipartFile.fromPath('image', image.path));
-      return http.Response.fromStream(await req.send());
+      return http.Response.fromStream(await client.send(req));
     });
   }
 
