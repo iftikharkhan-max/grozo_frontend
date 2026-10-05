@@ -28,8 +28,12 @@ class _SignupViewState extends State<SignupView> {
   }
 
   Future<void> _submit() async {
-    if (_name.text.trim().isEmpty || _email.text.trim().isEmpty || _pass.text.isEmpty || _mobile.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('fill_all'))));
+    if (_name.text.trim().isEmpty ||
+        _email.text.trim().isEmpty ||
+        _pass.text.isEmpty ||
+        _mobile.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.tr('fill_all'))));
       return;
     }
     setState(() => _loading = true);
@@ -45,7 +49,8 @@ class _SignupViewState extends State<SignupView> {
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(friendlyError(context, errorCode: res.errorCode, serverMessage: res.message)),
+        content: Text(friendlyError(context,
+            errorCode: res.errorCode, serverMessage: res.message)),
       ));
     }
   }
@@ -63,41 +68,53 @@ class _SignupViewState extends State<SignupView> {
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Icon(Icons.person_add_outlined, size: 72, color: theme.colorScheme.primary),
+              Icon(Icons.person_add_outlined,
+                  size: 72, color: theme.colorScheme.primary),
               const SizedBox(height: 24),
               TextField(
                 controller: _name,
                 textCapitalization: TextCapitalization.words,
                 autofillHints: const [AutofillHints.name],
-                decoration: InputDecoration(labelText: context.tr('full_name'), prefixIcon: const Icon(Icons.person_outline)),
+                decoration: InputDecoration(
+                    labelText: context.tr('full_name'),
+                    prefixIcon: const Icon(Icons.person_outline)),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _mobile,
                 keyboardType: TextInputType.phone,
                 autofillHints: const [AutofillHints.telephoneNumber],
-                decoration: InputDecoration(labelText: context.tr('mobile'), hintText: '03XX-XXXXXXX', prefixIcon: const Icon(Icons.phone_outlined)),
+                decoration: InputDecoration(
+                    labelText: context.tr('mobile'),
+                    hintText: '03XX-XXXXXXX',
+                    prefixIcon: const Icon(Icons.phone_outlined)),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
-                decoration: InputDecoration(labelText: context.tr('email'), prefixIcon: const Icon(Icons.email_outlined)),
+                decoration: InputDecoration(
+                    labelText: context.tr('email'),
+                    prefixIcon: const Icon(Icons.email_outlined)),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _pass,
                 obscureText: true,
                 autofillHints: const [AutofillHints.newPassword],
-                decoration: InputDecoration(labelText: context.tr('password'), prefixIcon: const Icon(Icons.lock_outline)),
+                decoration: InputDecoration(
+                    labelText: context.tr('password'),
+                    prefixIcon: const Icon(Icons.lock_outline)),
               ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(onPressed: _submit, child: Text(context.tr('create_account'))),
+                    : ElevatedButton(
+                        onPressed: _submit,
+                        child: Text(context.tr('create_account'))),
               ),
             ],
           ),

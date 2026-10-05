@@ -32,7 +32,8 @@ class _BannersAdminViewState extends State<BannersAdminView> {
   }
 
   Future<void> _edit([Map<String, dynamic>? b]) async {
-    final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => BannerEditView(banner: b)));
+    final saved = await Navigator.push<bool>(
+        context, MaterialPageRoute(builder: (_) => BannerEditView(banner: b)));
     if (saved == true) _load();
   }
 
@@ -41,7 +42,9 @@ class _BannersAdminViewState extends State<BannersAdminView> {
     final now = DateTime.now();
     final starts = parseServerDate(b['starts_at']);
     final ends = parseServerDate(b['ends_at']);
-    if (starts != null && starts.isAfter(now)) return 'Starts ${starts.day}/${starts.month}';
+    if (starts != null && starts.isAfter(now)) {
+      return 'Starts ${starts.day}/${starts.month}';
+    }
     if (ends != null && ends.isBefore(now)) return 'Expired';
     return ends == null ? 'Showing' : 'Showing until ${ends.day}/${ends.month}';
   }
@@ -63,22 +66,30 @@ class _BannersAdminViewState extends State<BannersAdminView> {
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
-                    child: Text('No banners yet. The home page shows the built-in "Order Anything" card until you add one.',
+                    child: Text(
+                        'No banners yet. The home page shows the built-in "Order Anything" card until you add one.',
                         textAlign: TextAlign.center),
                   ),
                 )
               : RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView(padding: const EdgeInsets.only(bottom: 88), children: [
-                    for (final b in _items!)
-                      ListTile(
-                        leading: SizedBox(width: 64, height: 40, child: NetImage(b['image_url'], fallbackEmoji: '🏷️')),
-                        title: Text('${b['title']}'),
-                        subtitle: Text('${'${b['kind']}'.toUpperCase()} • ${_status(b)}'),
-                        trailing: const Icon(Icons.edit_outlined),
-                        onTap: () => _edit(b),
-                      ),
-                  ]),
+                  child: ListView(
+                      padding: const EdgeInsets.only(bottom: 88),
+                      children: [
+                        for (final b in _items!)
+                          ListTile(
+                            leading: SizedBox(
+                                width: 64,
+                                height: 40,
+                                child: NetImage(b['image_url'],
+                                    fallbackEmoji: '🏷️')),
+                            title: Text('${b['title']}'),
+                            subtitle: Text(
+                                '${'${b['kind']}'.toUpperCase()} • ${_status(b)}'),
+                            trailing: const Icon(Icons.edit_outlined),
+                            onTap: () => _edit(b),
+                          ),
+                      ]),
                 ),
     );
   }
@@ -128,7 +139,8 @@ class _BannerEditViewState extends State<BannerEditView> {
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     if (_linkType != 'none' && _linkId == null) {
-      adminToast(context, 'Choose which ${_linkType == 'category' ? 'category' : 'product'} the banner opens.');
+      adminToast(context,
+          'Choose which ${_linkType == 'category' ? 'category' : 'product'} the banner opens.');
       return;
     }
     setState(() => _busy = true);
@@ -145,7 +157,9 @@ class _BannerEditViewState extends State<BannerEditView> {
         'terms': blankToNull(_terms),
         'link_type': _linkType,
         'link_id': _linkType == 'none' ? null : _linkId,
-        'starts_at': sqlDate(_starts == null ? null : DateTime(_starts!.year, _starts!.month, _starts!.day)),
+        'starts_at': sqlDate(_starts == null
+            ? null
+            : DateTime(_starts!.year, _starts!.month, _starts!.day)),
         'ends_at': sqlDate(_ends),
         'sort_order': int.tryParse(_order.text.trim()) ?? 0,
         'is_active': _active ? 1 : 0,
@@ -167,8 +181,12 @@ class _BannerEditViewState extends State<BannerEditView> {
       builder: (ctx) => AlertDialog(
         content: const Text('Delete this banner?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -182,17 +200,26 @@ class _BannerEditViewState extends State<BannerEditView> {
   Widget build(BuildContext context) {
     final targets = _linkType == 'category' ? _categories : _products;
     return Scaffold(
-      appBar: adminAppBar(widget.banner == null ? 'Add banner' : 'Edit banner', actions: [
-        if (widget.banner != null) IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline), onPressed: _delete),
-      ]),
+      appBar: adminAppBar(widget.banner == null ? 'Add banner' : 'Edit banner',
+          actions: [
+            if (widget.banner != null)
+              IconButton(
+                  tooltip: 'Delete',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _delete),
+          ]),
       bottomNavigationBar: AdminSaveButton(busy: _busy, onPressed: _save),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          const Text('Recommended image size: 1200 × 520 (wide). Without an image, the title and text are shown on a coloured card.',
+          const Text(
+              'Recommended image size: 1200 × 520 (wide). Without an image, the title and text are shown on a coloured card.',
               style: TextStyle(color: Colors.black54, fontSize: 12)),
           const SizedBox(height: 8),
-          AdminImagePicker(currentUrl: b['image_url'], picked: _image, onPicked: (f) => setState(() => _image = f)),
+          AdminImagePicker(
+              currentUrl: b['image_url'],
+              picked: _image,
+              onPicked: (f) => setState(() => _image = f)),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: SegmentedButton<String>(
@@ -205,17 +232,23 @@ class _BannerEditViewState extends State<BannerEditView> {
               onSelectionChanged: (s) => setState(() => _kind = s.first),
             ),
           ),
-          adminText(_title, 'Title (English)', required: true, hint: 'e.g. 20% off all fruits'),
+          adminText(_title, 'Title (English)',
+              required: true, hint: 'e.g. 20% off all fruits'),
           adminText(_titleUr, 'Title (Urdu)', direction: TextDirection.rtl),
           adminText(_subtitle, 'Details (English)', maxLines: 2),
-          adminText(_subtitleUr, 'Details (Urdu)', maxLines: 2, direction: TextDirection.rtl),
+          adminText(_subtitleUr, 'Details (Urdu)',
+              maxLines: 2, direction: TextDirection.rtl),
           adminSection('When tapped, open'),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: DropdownButtonFormField<String>(
+              isExpanded:
+                  true, // long names use the full width and never overflow
               initialValue: _linkType,
               items: const [
-                DropdownMenuItem(value: 'none', child: Text('Offer details (title, validity, terms)')),
+                DropdownMenuItem(
+                    value: 'none',
+                    child: Text('Offer details (title, validity, terms)')),
                 DropdownMenuItem(value: 'category', child: Text('A category')),
                 DropdownMenuItem(value: 'product', child: Text('A product')),
               ],
@@ -229,17 +262,33 @@ class _BannerEditViewState extends State<BannerEditView> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: DropdownButtonFormField<int>(
-                initialValue: targets.any((t) => t['id'] == _linkId) ? _linkId : null,
-                decoration: InputDecoration(labelText: _linkType == 'category' ? 'Category' : 'Product'),
-                items: [for (final t in targets) DropdownMenuItem(value: t['id'] as int, child: Text('${t['name']}'))],
+                isExpanded:
+                    true, // long names use the full width and never overflow
+                initialValue:
+                    targets.any((t) => t['id'] == _linkId) ? _linkId : null,
+                decoration: InputDecoration(
+                    labelText:
+                        _linkType == 'category' ? 'Category' : 'Product'),
+                items: [
+                  for (final t in targets)
+                    DropdownMenuItem(
+                        value: t['id'] as int, child: Text('${t['name']}'))
+                ],
                 onChanged: (v) => setState(() => _linkId = v),
               ),
             ),
           adminSection('Validity'),
-          AdminDateField(label: 'Starts on (optional)', value: _starts, onChanged: (d) => setState(() => _starts = d)),
-          AdminDateField(label: 'Ends on (optional)', value: _ends, onChanged: (d) => setState(() => _ends = d)),
+          AdminDateField(
+              label: 'Starts on (optional)',
+              value: _starts,
+              onChanged: (d) => setState(() => _starts = d)),
+          AdminDateField(
+              label: 'Ends on (optional)',
+              value: _ends,
+              onChanged: (d) => setState(() => _ends = d)),
           adminText(_terms, 'Terms & conditions (optional)', maxLines: 3),
-          adminNumber(_order, 'Display order', hint: 'Smaller numbers appear first', decimal: false),
+          adminNumber(_order, 'Display order',
+              hint: 'Smaller numbers appear first', decimal: false),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Visible in the app'),

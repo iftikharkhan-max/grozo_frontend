@@ -30,7 +30,10 @@ class _ShopViewState extends State<ShopView> {
     if (!mounted) return;
     setState(() {
       _errorCode = res.ok ? null : (res.errorCode ?? 'generic');
-      if (res.ok) _categories = (res.data as List).map((c) => Category.fromJson(c)).toList();
+      if (res.ok) {
+        _categories =
+            (res.data as List).map((c) => Category.fromJson(c)).toList();
+      }
     });
   }
 
@@ -43,17 +46,22 @@ class _ShopViewState extends State<ShopView> {
           ? Center(
               child: _errorCode == null
                   ? const CircularProgressIndicator()
-                  : ElevatedButton(onPressed: _load, child: Text(context.tr('retry'))),
+                  : ElevatedButton(
+                      onPressed: _load, child: Text(context.tr('retry'))),
             )
           : ListView(padding: const EdgeInsets.all(12), children: [
               Card(
                 color: brandGreenLight,
                 child: ListTile(
-                  leading: const Icon(Icons.storefront, color: brandPrimary, size: 32),
-                  title: Text(context.tr('market_shopping'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  leading: const Icon(Icons.storefront,
+                      color: brandPrimary, size: 32),
+                  title: Text(context.tr('market_shopping'),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(context.tr('not_in_list')),
-                  trailing: Icon(Icons.chevron_right, textDirection: Directionality.of(context)),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketView())),
+                  trailing: Icon(Icons.chevron_right,
+                      textDirection: Directionality.of(context)),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const MarketView())),
                 ),
               ),
               const SizedBox(height: 8),
@@ -67,18 +75,31 @@ class _ShopViewState extends State<ShopView> {
                 children: [
                   for (final c in _categories!)
                     Material(
-                      color: c.group == 'featured' ? brandYellowLight : Colors.white,
+                      color: c.group == 'featured'
+                          ? brandYellowLight
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       elevation: 0.5,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductListView(category: c))),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => ProductListView(category: c))),
                         child: Padding(
                           padding: const EdgeInsets.all(8),
                           child: Column(children: [
-                            Expanded(child: NetImage(c.imageUrl, fit: BoxFit.contain, fallbackEmoji: categoryEmoji(c.name))),
+                            Expanded(
+                                child: NetImage(c.imageUrl,
+                                    fit: BoxFit.contain,
+                                    fallbackEmoji: categoryEmoji(c.name))),
                             const SizedBox(height: 4),
-                            Text(c.displayName(lang), maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5)),
+                            Text(c.displayName(lang),
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12.5)),
                           ]),
                         ),
                       ),

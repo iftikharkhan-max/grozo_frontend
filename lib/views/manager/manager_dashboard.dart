@@ -27,12 +27,16 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
 
   void _refreshAll() async {
     final poolData = await OrderService.fetchGlobalPool();
-    final workspaceData = await OrderService.fetchOrdersByRole('manager', widget.user.id);
-    final reportData = await OrderService.fetchReports(widget.user.id, 'manager');
+    final workspaceData =
+        await OrderService.fetchOrdersByRole('manager', widget.user.id);
+    final reportData =
+        await OrderService.fetchReports(widget.user.id, 'manager');
 
     var ridersData = await OrderService.fetchUsersByRole('rider');
-    if (ridersData.isEmpty) ridersData = await OrderService.fetchUsersByRole('Rider');
-    
+    if (ridersData.isEmpty) {
+      ridersData = await OrderService.fetchUsersByRole('Rider');
+    }
+
     if (mounted) {
       setState(() {
         _pool = poolData;
@@ -46,7 +50,8 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   void _logout() => confirmLogout(context);
 
   Future<void> _openPhoneOrder() async {
-    final created = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const PhoneOrderView()));
+    final created = await Navigator.push<bool>(
+        context, MaterialPageRoute(builder: (_) => const PhoneOrderView()));
     if (created == true) _refreshAll();
   }
 
@@ -59,11 +64,18 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         appBar: AppBar(
           title: const Text('Manager Workspace'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Pool'), Tab(text: 'My Tasks'), Tab(text: 'Reports')],
+            tabs: [
+              Tab(text: 'Pool'),
+              Tab(text: 'My Tasks'),
+              Tab(text: 'Reports')
+            ],
             labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           actions: [
-            IconButton(tooltip: 'New phone order', icon: const Icon(Icons.add_call), onPressed: _openPhoneOrder),
+            IconButton(
+                tooltip: 'New phone order',
+                icon: const Icon(Icons.add_call),
+                onPressed: _openPhoneOrder),
             IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshAll),
             IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
           ],
@@ -76,28 +88,38 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               child: _pool.isEmpty
                   ? const Center(child: Text("Global pool is empty."))
                   : ListView.builder(
-                itemCount: _pool.length,
-                itemBuilder: (_, idx) {
-                  final o = _pool[idx];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: ExpansionTile(
-                      title: Text('Ref: ${o['tracking_number']}${o['order_source'] == 'phone' ? '  •  📞 PHONE' : ''}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('${o['customer_name'] ?? ''} • ${o['destination'] ?? 'N/A'}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      trailing: ElevatedButton(
-                        onPressed: () async {
-                          await OrderService.claimOrder(o['id'], widget.user.id);
-                          _refreshAll();
-                        },
-                        child: const Text('Claim'),
-                      ),
-                      children: [StaffOrderInfo(Map<String, dynamic>.from(o))],
+                      itemCount: _pool.length,
+                      itemBuilder: (_, idx) {
+                        final o = _pool[idx];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          child: ExpansionTile(
+                            title: Text(
+                                'Ref: ${o['tracking_number']}${o['order_source'] == 'phone' ? '  •  📞 PHONE' : ''}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: Text(
+                                '${o['customer_name'] ?? ''} • ${o['destination'] ?? 'N/A'}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            childrenPadding:
+                                const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            trailing: ElevatedButton(
+                              onPressed: () async {
+                                await OrderService.claimOrder(
+                                    o['id'], widget.user.id);
+                                _refreshAll();
+                              },
+                              child: const Text('Claim'),
+                            ),
+                            children: [
+                              StaffOrderInfo(Map<String, dynamic>.from(o))
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
             // Tab 2: My Workspace
             RefreshIndicator(
@@ -105,71 +127,118 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               child: _myWorkspace.isEmpty
                   ? const Center(child: Text("No active orders in workspace."))
                   : ListView.builder(
-                itemCount: _myWorkspace.length,
-                itemBuilder: (_, idx) {
-                  final o = _myWorkspace[idx];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Order: ${o['tracking_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              Text(o['status'] ?? 'Unknown', style: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold)),
-                            ],
+                      itemCount: _myWorkspace.length,
+                      itemBuilder: (_, idx) {
+                        final o = _myWorkspace[idx];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                          'Order: ${o['tracking_number']}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(o['status'] ?? 'Unknown',
+                                        style: TextStyle(
+                                            color: theme.colorScheme.secondary,
+                                            fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                                const Divider(),
+                                StaffOrderInfo(Map<String, dynamic>.from(o)),
+                                if (o['rider_name'] != null &&
+                                    o['rider_name'] != 'Unassigned')
+                                  Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text('Rider: ${o['rider_name']}')),
+                                const SizedBox(height: 10),
+                                if ([
+                                  'order placed',
+                                  'with manager',
+                                  'claimed'
+                                ].contains(
+                                    o['status'].toString().toLowerCase())) ...[
+                                  if (_riders.isEmpty)
+                                    const Text("No riders available.",
+                                        style: TextStyle(color: Colors.red))
+                                  else
+                                    DropdownButtonFormField<dynamic>(
+                                      initialValue: _selectedRiders[o['id']],
+                                      // Long rider names/numbers must not overflow the card.
+                                      isExpanded: true,
+                                      items: _riders
+                                          .map<DropdownMenuItem<dynamic>>((r) {
+                                        return DropdownMenuItem<dynamic>(
+                                          value: r['id'],
+                                          child: Text(
+                                              "${r['name']} (${r['mobile'] ?? ''})",
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis),
+                                        );
+                                      }).toList(),
+                                      onChanged: (v) => setState(
+                                          () => _selectedRiders[o['id']] = v),
+                                      decoration: const InputDecoration(
+                                          labelText: 'Assign Rider'),
+                                    ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _riders.isEmpty
+                                          ? null
+                                          : () async {
+                                              if (_selectedRiders[o['id']] !=
+                                                  null) {
+                                                await OrderService
+                                                    .dispatchToRider(
+                                                        o['id'],
+                                                        _selectedRiders[
+                                                            o['id']]);
+                                                _refreshAll();
+                                              }
+                                            },
+                                      child: const Text('DISPATCH'),
+                                    ),
+                                  )
+                                ]
+                              ],
+                            ),
                           ),
-                          const Divider(),
-                          StaffOrderInfo(Map<String, dynamic>.from(o)),
-                          if (o['rider_name'] != null && o['rider_name'] != 'Unassigned')
-                            Padding(padding: const EdgeInsets.only(top: 4), child: Text('Rider: ${o['rider_name']}')),
-                          const SizedBox(height: 10),
-                          if (['order placed', 'with manager', 'claimed'].contains(o['status'].toString().toLowerCase())) ...[
-                            if (_riders.isEmpty)
-                              const Text("No riders available.", style: TextStyle(color: Colors.red))
-                            else
-                              DropdownButtonFormField<dynamic>(
-                                initialValue: _selectedRiders[o['id']],
-                                items: _riders.map<DropdownMenuItem<dynamic>>((r) {
-                                  return DropdownMenuItem<dynamic>(value: r['id'], child: Text("${r['name']} (${r['mobile']})"));
-                                }).toList(),
-                                onChanged: (v) => setState(() => _selectedRiders[o['id']] = v),
-                                decoration: const InputDecoration(labelText: 'Assign Rider'),
-                              ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _riders.isEmpty ? null : () async {
-                                  if (_selectedRiders[o['id']] != null) {
-                                    await OrderService.dispatchToRider(o['id'], _selectedRiders[o['id']]);
-                                    _refreshAll();
-                                  }
-                                },
-                                child: const Text('DISPATCH'),
-                              ),
-                            )
-                          ]
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
             // Tab 3: Reports
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  const Text('Workspace Performance', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text('Workspace Performance',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 30),
-                  _buildReportItem('Orders Completed', _report['count'].toString(), Icons.check_circle, Colors.indigo),
+                  _buildReportItem(
+                      'Orders Completed',
+                      _report['count'].toString(),
+                      Icons.check_circle,
+                      Colors.indigo),
                   const SizedBox(height: 20),
-                  _buildReportItem('Volume Handled', 'PKR ${_report['total']}', Icons.trending_up, Colors.green),
+                  _buildReportItem('Volume Handled', 'PKR ${_report['total']}',
+                      Icons.trending_up, Colors.green),
                 ],
               ),
             )
@@ -179,12 +248,14 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     );
   }
 
-  Widget _buildReportItem(String label, String value, IconData icon, Color color) {
+  Widget _buildReportItem(
+      String label, String value, IconData icon, Color color) {
     return Card(
       child: ListTile(
         leading: Icon(icon, color: color, size: 30),
         title: Text(label, style: const TextStyle(color: Colors.grey)),
-        subtitle: Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        subtitle: Text(value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       ),
     );
   }

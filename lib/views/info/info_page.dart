@@ -36,11 +36,14 @@ class InfoPage extends StatelessWidget {
       body: FutureBuilder<Map<String, dynamic>?>(
         future: AppSettings.load(),
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final text = AppSettings.pick(snap.data, settingKey, context.lang);
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: Text(text ?? context.tr('content_not_set'), style: const TextStyle(fontSize: 15, height: 1.5)),
+            child: Text(text ?? context.tr('content_not_set'),
+                style: const TextStyle(fontSize: 15, height: 1.5)),
           );
         },
       ),

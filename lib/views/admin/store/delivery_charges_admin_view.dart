@@ -18,7 +18,8 @@ class DeliveryChargesAdminView extends StatefulWidget {
   const DeliveryChargesAdminView({super.key});
 
   @override
-  State<DeliveryChargesAdminView> createState() => _DeliveryChargesAdminViewState();
+  State<DeliveryChargesAdminView> createState() =>
+      _DeliveryChargesAdminViewState();
 }
 
 class _DeliveryChargesAdminViewState extends State<DeliveryChargesAdminView> {
@@ -32,7 +33,11 @@ class _DeliveryChargesAdminViewState extends State<DeliveryChargesAdminView> {
     Api.get('/delivery-charges').then((res) {
       if (!mounted) return;
       setState(() => _tiers = res.ok
-          ? [for (final t in res.data) _Tier(numText(t['min_km']), numText(t['max_km']), numText(t['charge']))]
+          ? [
+              for (final t in res.data)
+                _Tier(numText(t['min_km']), numText(t['max_km']),
+                    numText(t['charge']))
+            ]
           : []);
     });
   }
@@ -41,47 +46,61 @@ class _DeliveryChargesAdminViewState extends State<DeliveryChargesAdminView> {
     if (!_form.currentState!.validate()) return;
     final rows = [
       for (final t in _tiers!)
-        {'min_km': double.parse(t.min.text), 'max_km': double.parse(t.max.text), 'charge': double.parse(t.charge.text)},
+        {
+          'min_km': double.parse(t.min.text),
+          'max_km': double.parse(t.max.text),
+          'charge': double.parse(t.charge.text)
+        },
     ];
     if (rows.isEmpty) {
       adminToast(context, 'Add at least one distance band.');
       return;
     }
     if (rows.any((r) => (r['max_km'] as double) <= (r['min_km'] as double))) {
-      adminToast(context, '"To km" must be larger than "From km" in every row.');
+      adminToast(
+          context, '"To km" must be larger than "From km" in every row.');
       return;
     }
     setState(() => _busy = true);
     final res = await Api.put('/admin/delivery-charges', rows);
     if (!mounted) return;
     setState(() => _busy = false);
-    res.ok ? adminToast(context, 'Delivery charges saved.') : adminError(context, res);
+    res.ok
+        ? adminToast(context, 'Delivery charges saved.')
+        : adminError(context, res);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: adminAppBar('Delivery charges'),
-      bottomNavigationBar: _tiers == null ? null : AdminSaveButton(busy: _busy, onPressed: _save),
+      bottomNavigationBar: _tiers == null
+          ? null
+          : AdminSaveButton(busy: _busy, onPressed: _save),
       body: _tiers == null
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _form,
               child: ListView(padding: const EdgeInsets.all(16), children: [
-                const Text('Charge is based on the distance from your branch to the customer\'s saved address. '
+                const Text(
+                    'Charge is based on the distance from your branch to the customer\'s saved address. '
                     'Addresses beyond the last band cannot order delivery.',
                     style: TextStyle(color: Colors.black54)),
                 const SizedBox(height: 12),
                 for (final (i, t) in _tiers!.indexed)
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Expanded(child: adminNumber(t.min, 'From km', required: true)),
+                    Expanded(
+                        child: adminNumber(t.min, 'From km', required: true)),
                     const SizedBox(width: 6),
-                    Expanded(child: adminNumber(t.max, 'To km', required: true)),
+                    Expanded(
+                        child: adminNumber(t.max, 'To km', required: true)),
                     const SizedBox(width: 6),
-                    Expanded(child: adminNumber(t.charge, 'Rs.', required: true)),
+                    Expanded(
+                        child: adminNumber(t.charge, 'Rs.', required: true)),
                     IconButton(
                       tooltip: 'Remove row',
-                      icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                      icon: const Icon(Icons.remove_circle_outline,
+                          color: Colors.red),
                       onPressed: () => setState(() => _tiers!.removeAt(i)),
                     ),
                   ]),

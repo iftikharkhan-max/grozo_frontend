@@ -20,13 +20,21 @@ class GrozoHeader extends StatelessWidget {
     final branch = state.selectedBranch;
     final branchName = branch == null
         ? context.tr('location')
-        : (context.lang == 'ur' && (branch['name_ur'] ?? '').toString().isNotEmpty ? branch['name_ur'] : branch['name']).toString();
+        : (context.lang == 'ur' &&
+                    (branch['name_ur'] ?? '').toString().isNotEmpty
+                ? branch['name_ur']
+                : branch['name'])
+            .toString();
 
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [brandPrimary, brandGreen], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+        gradient: LinearGradient(
+            colors: [brandPrimary, brandGreen],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter),
       ),
-      padding: EdgeInsets.fromLTRB(8, MediaQuery.paddingOf(context).top + 4, 0, 6),
+      padding:
+          EdgeInsets.fromLTRB(8, MediaQuery.paddingOf(context).top + 4, 0, 6),
       child: Row(
         children: [
           // Location
@@ -43,9 +51,14 @@ class GrozoHeader extends StatelessWidget {
                     child: Text(branchName,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12.5, height: 1.15)),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                            height: 1.15)),
                   ),
-                  const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 18),
+                  const Icon(Icons.keyboard_arrow_down,
+                      color: Colors.white, size: 18),
                 ]),
               ),
             ),
@@ -56,17 +69,23 @@ class GrozoHeader extends StatelessWidget {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Container(
                 padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: Image.asset('assets/images/logo.png', height: 46, width: 46),
+                decoration: const BoxDecoration(
+                    color: Colors.white, shape: BoxShape.circle),
+                child: Image.asset('assets/images/logo.png',
+                    height: 46, width: 46),
               ),
               const SizedBox(height: 2),
               FittedBox(
                 child: Text(context.tr('app_tagline'),
-                    style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w500)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w500)),
               ),
             ]),
           ),
-          _LanguageToggle(current: state.language, onChanged: state.setLanguage),
+          _LanguageToggle(
+              current: state.language, onChanged: state.setLanguage),
           IconButton(
             tooltip: context.tr('cart'),
             visualDensity: VisualDensity.compact,
@@ -74,7 +93,8 @@ class GrozoHeader extends StatelessWidget {
             icon: Badge(
               isLabelVisible: state.cartCount > 0,
               label: Text('${state.cartCount}'),
-              child: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 26),
+              child: const Icon(Icons.shopping_cart_outlined,
+                  color: Colors.white, size: 26),
             ),
           ),
           IconButton(
@@ -109,8 +129,14 @@ class _LanguageToggle extends StatelessWidget {
           onTap: () => onChanged(code),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(color: selected ? brandGreen : Colors.transparent, borderRadius: BorderRadius.circular(20)),
-            child: Text(label, style: TextStyle(color: selected ? Colors.white : brandPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
+            decoration: BoxDecoration(
+                color: selected ? brandGreen : Colors.transparent,
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(label,
+                style: TextStyle(
+                    color: selected ? Colors.white : brandPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold)),
           ),
         ),
       );
@@ -118,11 +144,14 @@ class _LanguageToggle extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(20)),
       // Keep EN on the left regardless of text direction.
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [option('en', 'EN'), option('ur', 'اردو')]),
+        child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [option('en', 'EN'), option('ur', 'اردو')]),
       ),
     );
   }
@@ -142,23 +171,35 @@ void showBranchPicker(BuildContext context) {
         final ur = context.lang == 'ur';
         return SafeArea(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
+            constraints:
+                BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
             child: ListView(shrinkWrap: true, children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(context.tr('select_branch'), style: Theme.of(context).textTheme.titleMedium),
+                child: Text(context.tr('select_branch'),
+                    style: Theme.of(context).textTheme.titleMedium),
               ),
               if (s.branches.isEmpty)
-                Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(context.tr('branch_not_set')))),
+                Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(child: Text(context.tr('branch_not_set')))),
               for (final b in s.branches)
                 ListTile(
                   leading: Icon(
-                    s.selectedBranch?['id'] == b['id'] ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                    s.selectedBranch?['id'] == b['id']
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
                     color: brandGreen,
                   ),
-                  title: Text((ur && (b['name_ur'] ?? '').toString().isNotEmpty ? b['name_ur'] : b['name']).toString(),
+                  title: Text(
+                      (ur && (b['name_ur'] ?? '').toString().isNotEmpty
+                              ? b['name_ur']
+                              : b['name'])
+                          .toString(),
                       style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text([b['address'], b['opening_hours']].where((x) => (x ?? '').toString().isNotEmpty).join('\n')),
+                  subtitle: Text([b['address'], b['opening_hours']]
+                      .where((x) => (x ?? '').toString().isNotEmpty)
+                      .join('\n')),
                   trailing: const Icon(Icons.map_outlined, color: brandPrimary),
                   onTap: () {
                     s.selectBranch(b['id'] as int);
@@ -177,6 +218,10 @@ void showBranchPicker(BuildContext context) {
 void _openInMaps(Map<String, dynamic> b) {
   final lat = double.tryParse('${b['latitude']}');
   final lng = double.tryParse('${b['longitude']}');
-  final query = lat != null && lng != null ? '$lat,$lng' : '${b['address'] ?? b['name']}';
-  launchUrl(Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': query}), mode: LaunchMode.externalApplication);
+  final query =
+      lat != null && lng != null ? '$lat,$lng' : '${b['address'] ?? b['name']}';
+  launchUrl(
+      Uri.https(
+          'www.google.com', '/maps/search/', {'api': '1', 'query': query}),
+      mode: LaunchMode.externalApplication);
 }

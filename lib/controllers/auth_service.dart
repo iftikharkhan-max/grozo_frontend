@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:grozo/services/api.dart';
 // Absolute package imports to resolve 'Config' and 'UserModel'
 import 'package:grozo/utils/constants.dart';
@@ -11,7 +10,7 @@ class AuthService {
 
   static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final response = await http.post(
+      final response = await Api.client.post(
         Uri.parse('${Config.baseUrl}/auth/login'),
         headers: Api.jsonHeaders,
         body: jsonEncode({'email': email, 'password': password}),
@@ -41,7 +40,7 @@ class AuthService {
     required String address, // <-- 1. Added address parameter here
   }) async {
     try {
-      final response = await http.post(
+      final response = await Api.client.post(
         Uri.parse('${Config.baseUrl}/admin/add-user'), // Hits your admin MVC route
         headers: Api.jsonHeaders,
         body: jsonEncode({
@@ -74,7 +73,7 @@ class AuthService {
     required String cnic,
   }) async {
     try {
-      final response = await http.post(
+      final response = await Api.client.post(
         Uri.parse('${Config.baseUrl}/auth/register'),
         headers: Api.jsonHeaders,
         body: jsonEncode({
@@ -94,7 +93,7 @@ class AuthService {
 
   static Future<bool> updateUser(int id, Map<String, dynamic> data) async {
     try {
-      final response = await http.put(
+      final response = await Api.client.put(
         Uri.parse('${Config.baseUrl}/admin/$id'),
         headers: Api.jsonHeaders,
         body: jsonEncode(data),
@@ -110,7 +109,7 @@ class AuthService {
     try {
       // 1. Notice we changed http.delete to http.put
       // 2. Notice we added /deactivate to the end of the URL
-      final res = await http.put(
+      final res = await Api.client.put(
         Uri.parse('${Config.baseUrl}/admin/$id/deactivate'),
         headers: Api.jsonHeaders,
       );
@@ -125,7 +124,7 @@ class AuthService {
   static Future<bool> deleteAccount(int id) async {
     try {
       // Deactivating customer account
-      final response = await http.put(
+      final response = await Api.client.put(
         Uri.parse('${Config.baseUrl}/admin/$id/deactivate'), headers: Api.authHeaders,
       );
       return response.statusCode == 200;

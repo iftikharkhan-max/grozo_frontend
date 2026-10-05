@@ -9,18 +9,24 @@ class LocationService {
   StreamSubscription<Position>? _positionStreamSubscription;
   WebSocketChannel? _channel;
 
+  /// Current position, or null when location is off, refused or unavailable.
   Future<Position?> getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return null;
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return null;
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return null;
+      }
+      if (permission == LocationPermission.deniedForever) return null;
+
+      return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 20));
+    } catch (_) {
+      // e.g. GPS timeout or a platform error: treat as "no location".
+      return null;
     }
-    if (permission == LocationPermission.deniedForever) return null;
-
-    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
   }
 
   int? _trackingOrderId;
@@ -28,11 +34,12 @@ class LocationService {
 
   /// Starts streaming live coordinates to the backend via WebSockets.
   /// The server keeps only the latest position for the customer of [orderId].
-  Future<void> startTrackingRider(int orderId, int riderId) async {
-    if (_trackingOrderId == orderId) return;
+  /// Returns false when location is off or refused (nothing is shared).
+  Future<bool> startTrackingRider(int orderId, int riderId) async {
+    if (_trackingOrderId == orderId) return true;
     stopTracking();
     // Location permission is needed before the position stream can start.
-    if (await getCurrentLocation() == null) return;
+    if (await getCurrentLocation() == null) return false;
     _trackingOrderId = orderId;
     final uri = Uri.parse(Config.wsUrl);
     _channel = WebSocketChannel.connect(
@@ -56,7 +63,8 @@ class LocationService {
 
       // Push tracking payload through the pipe
       _channel?.sink.add(jsonEncode(telemetryData));
-    });
+    }, onError: (_) {}); // GPS hiccups must not crash the rider screen
+    return true;
   }
 
   /// Stops tracking updates and cleanly severs websocket pipes

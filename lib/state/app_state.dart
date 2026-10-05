@@ -110,17 +110,7 @@ class AppState extends ChangeNotifier {
       } catch (_) {}
     }
 
-    try {
-      final token = await _secure.read(key: _kToken);
-      final userJson = await _secure.read(key: _kUser);
-      if (token != null && userJson != null) {
-        Api.token = token;
-        user = UserModel.fromJson(jsonDecode(userJson));
-      }
-    } catch (_) {
-      // Unreadable secure storage (e.g. after a backup restore): start logged out.
-      await _secure.deleteAll();
-    }
+    await _restoreSession();
 
     Api.onSessionExpired = _handleSessionExpired;
     if (isLoggedIn) {
@@ -131,6 +121,28 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------- Session ----------
+
+  /// Restores the saved login. Secure storage can fail briefly right after the
+  /// phone starts, so it is retried before the customer is treated as logged out.
+  Future<void> _restoreSession() async {
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final token = await _secure.read(key: _kToken);
+        final userJson = await _secure.read(key: _kUser);
+        if (token != null && userJson != null) {
+          Api.token = token;
+          user = UserModel.fromJson(jsonDecode(userJson));
+        }
+        return;
+      } catch (_) {
+        if (attempt < 3) await Future.delayed(Duration(milliseconds: 300 * attempt));
+      }
+    }
+    // Still unreadable (e.g. restored from another phone's backup): start logged out.
+    try {
+      await _secure.deleteAll();
+    } catch (_) {}
+  }
 
   Future<ApiResult> login(String email, String password) async {
     final res = await Api.post('/auth/login', {'email': email.trim(), 'password': password});
@@ -160,6 +172,9 @@ class AppState extends ChangeNotifier {
   Future<void> refreshProfile() async {
     final res = await Api.get('/auth/me');
     if (res.ok && isLoggedIn) {
+      // The server renews older tokens so an active customer stays logged in.
+      final fresh = res.data['token'];
+      if (fresh is String && fresh.isNotEmpty) await replaceToken(fresh);
       user = UserModel.fromJson(res.data);
       await _secure.write(key: _kUser, value: jsonEncode(user!.toJson()));
       notifyListeners();
@@ -228,6 +243,10 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// True once the customer has picked a branch themselves (header or checkout).
+  bool get hasChosenBranch =>
+      _selectedBranchId != null && branches.any((b) => b['id'] == _selectedBranchId);
 
   void selectBranch(int id) {
     _selectedBranchId = id;

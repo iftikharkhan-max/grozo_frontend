@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:grozo/services/api.dart';
 import '../../utils/validators.dart';
 import '../../utils/constants.dart';
@@ -28,6 +27,8 @@ class _AddUserViewState extends State<AddUserView> {
 
   List<dynamic> _staffList = [];
 
+  /// Removed (deactivated) Managers and Riders, who can be reactivated.
+  List<Map<String, dynamic>> _inactiveStaff = [];
 
   @override
   void initState() {
@@ -38,116 +39,267 @@ class _AddUserViewState extends State<AddUserView> {
   // --- EXISTING STAFF LOGIC ---
   void _loadStaff() async {
     try {
-      final res = await http.get(Uri.parse('${Config.baseUrl}/admin'), headers: Api.authHeaders);
+      final res = await Api.client
+          .get(Uri.parse('${Config.baseUrl}/admin'), headers: Api.authHeaders);
       if (res.statusCode == 200) {
         if (mounted) setState(() => _staffList = jsonDecode(res.body));
       }
     } catch (_) {}
+    final inactive = await Api.get('/admin/inactive');
+    if (inactive.ok && inactive.data is List && mounted) {
+      setState(() =>
+          _inactiveStaff = List<Map<String, dynamic>>.from(inactive.data));
+    }
+  }
+
+  void _toast(String m) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+
+  void _clearForm() {
+    _name.clear();
+    _email.clear();
+    _pass.clear();
+    _cnic.clear();
+    _mobile.clear();
+    _address.clear();
   }
 
   void _provision() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final err = await AuthService.adminAddStaff(
-        name: _name.text, email: _email.text, password: _pass.text,
-        role: _role, cnic: _cnic.text, mobile: _mobile.text, address: _address.text
-    );
+    final res = await Api.post('/admin/add-user', {
+      'name': _name.text.trim(),
+      'email': _email.text.trim(),
+      'password': _pass.text,
+      'role': _role,
+      'cnic': _cnic.text.trim(),
+      'mobile': _mobile.text.trim(),
+      'address': _address.text.trim(),
+    });
 
     if (!mounted) return;
-    if (err == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully added $_role!')));
-      _name.clear(); _email.clear(); _pass.clear(); _cnic.clear(); _mobile.clear(); _address.clear();
+    if (res.ok) {
+      _toast('Successfully added $_role!');
+      _clearForm();
+      _loadStaff();
+      return;
+    }
+    final data = res.data is Map ? res.data as Map : const {};
+    if (data['code'] == 'inactive_user' && data['user'] is Map) {
+      // This person was removed before: bring the same account back (keeps
+      // their order history) instead of creating a duplicate.
+      final user = Map<String, dynamic>.from(data['user']);
+      final ok = await _confirmReactivate('${data['message']}');
+      if (ok == true) await _reactivate(user, withFormDetails: true);
+      return;
+    }
+    _toast(res.isNetworkError
+        ? 'Network error connecting to backend engine.'
+        : (res.message ?? 'Failed to provision staff account.'));
+  }
+
+  Future<bool?> _confirmReactivate(String message) => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Previously removed staff'),
+          content: Text('$message\n\nReactivating restores the same account '
+              'as $_role with the details entered on this form. Past orders '
+              'stay linked to it.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Reactivate')),
+          ],
+        ),
+      );
+
+  /// Reactivates a removed staff member. From the Add Staff form the newly
+  /// entered role, password and contact details are applied too.
+  Future<void> _reactivate(Map<String, dynamic> user,
+      {bool withFormDetails = false}) async {
+    final res = await Api.put(
+        '/admin/${user['id']}/reactivate',
+        withFormDetails
+            ? {
+                'role': _role,
+                'name': _name.text.trim(),
+                'mobile': _mobile.text.trim(),
+                'address': _address.text.trim(),
+                'password': _pass.text,
+              }
+            : {});
+    if (!mounted) return;
+    if (res.ok) {
+      _toast('${res.data?['message'] ?? '${user['name']} reactivated.'}');
+      if (withFormDetails) _clearForm();
       _loadStaff();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      _toast(res.message ?? 'Reactivation failed.');
     }
   }
 
+  Future<void> _askReactivate(Map<String, dynamic> u) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reactivate ${u['name']}?'),
+        content: Text('${u['name']} will be able to log in again as '
+            '${u['role']} with their previous password.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Reactivate')),
+        ],
+      ),
+    );
+    if (ok == true) _reactivate(u);
+  }
+
+  Widget _inactiveSection() => ExpansionTile(
+        leading: const Icon(Icons.person_off_outlined, color: Colors.grey),
+        title: Text('Removed staff (${_inactiveStaff.length})'),
+        subtitle: const Text('Reactivate someone who was removed earlier'),
+        children: [
+          for (final u in _inactiveStaff)
+            ListTile(
+              leading: CircleAvatar(
+                  backgroundColor: Colors.grey.shade400,
+                  foregroundColor: Colors.white,
+                  child: Text('${u['role'] ?? '?'}'[0])),
+              title: Text('${u['name']} (${u['role']})'),
+              subtitle: Text('${u['email']}\n${u['mobile'] ?? ''}'),
+              isThreeLine: true,
+              trailing: TextButton(
+                onPressed: () => _askReactivate(u),
+                child: const Text('REACTIVATE'),
+              ),
+            ),
+        ],
+      );
+
   void _showUpdateDialog(dynamic staff) {
-    final updateMobile = TextEditingController(text: staff['mobile']?.toString() ?? '');
-    final updateAddress = TextEditingController(text: staff['address']?.toString() ?? '');
+    final updateMobile =
+        TextEditingController(text: staff['mobile']?.toString() ?? '');
+    final updateAddress =
+        TextEditingController(text: staff['address']?.toString() ?? '');
     String updateRole = staff['role'] ?? 'Rider';
     bool isCustomer = updateRole == 'Customer';
 
     showDialog(
         context: context,
         builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: Text('Update ${staff['name']}'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isCustomer) 
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text('Customer profile cannot be edited here. Only deactivation is permitted.', style: TextStyle(color: Colors.orange, fontSize: 12)),
-                    ),
-                  DropdownButtonFormField<String>(
-                    initialValue: updateRole,
-                    items: ['Rider', 'Manager', 'Customer'].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                    onChanged: isCustomer ? null : (val) => setDialogState(() => updateRole = val!),
-                    decoration: const InputDecoration(labelText: 'Profile Role'),
+              builder: (context, setDialogState) => AlertDialog(
+                title: Text('Update ${staff['name']}'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isCustomer)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                              'Customer profile cannot be edited here. Only deactivation is permitted.',
+                              style: TextStyle(
+                                  color: Colors.orange, fontSize: 12)),
+                        ),
+                      DropdownButtonFormField<String>(
+                        isExpanded:
+                            true, // long names use the full width and never overflow
+                        initialValue: updateRole,
+                        items: ['Rider', 'Manager', 'Customer']
+                            .map((r) =>
+                                DropdownMenuItem(value: r, child: Text(r)))
+                            .toList(),
+                        onChanged: isCustomer
+                            ? null
+                            : (val) => setDialogState(() => updateRole = val!),
+                        decoration:
+                            const InputDecoration(labelText: 'Profile Role'),
+                      ),
+                      TextField(
+                        controller: updateMobile,
+                        decoration:
+                            const InputDecoration(labelText: 'Mobile Number'),
+                        enabled: !isCustomer,
+                      ),
+                      TextField(
+                        controller: updateAddress,
+                        decoration: const InputDecoration(labelText: 'Address'),
+                        enabled: !isCustomer,
+                      ),
+                    ],
                   ),
-                  TextField(
-                    controller: updateMobile, 
-                    decoration: const InputDecoration(labelText: 'Mobile Number'),
-                    enabled: !isCustomer,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      bool confirm = await showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Confirm Deactivation'),
+                              content: const Text(
+                                  'Are you sure you want to deactivate this account? The user will no longer be able to login.'),
+                              actions: [
+                                TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel')),
+                                TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Deactivate',
+                                        style: TextStyle(color: Colors.red))),
+                              ],
+                            ),
+                          ) ??
+                          false;
+
+                      if (confirm) {
+                        final success =
+                            await AuthService.deleteUser(staff['id']);
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(success
+                                  ? 'User deactivated'
+                                  : 'Deactivation failed')));
+                          _loadStaff();
+                        }
+                      }
+                    },
+                    child: const Text('DEACTIVATE',
+                        style: TextStyle(color: Colors.red)),
                   ),
-                  TextField(
-                    controller: updateAddress, 
-                    decoration: const InputDecoration(labelText: 'Address'),
-                    enabled: !isCustomer,
-                  ),
+                  if (!isCustomer)
+                    TextButton(
+                      onPressed: () async {
+                        final success =
+                            await AuthService.updateUser(staff['id'], {
+                          'mobile': updateMobile.text,
+                          'address': updateAddress.text,
+                          'role': updateRole,
+                        });
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(success
+                                  ? 'User updated successfully!'
+                                  : 'Update failed.')));
+                          _loadStaff();
+                        }
+                      },
+                      child: const Text('Update Profile'),
+                    )
                 ],
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () async {
-                  bool confirm = await showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Confirm Deactivation'),
-                      content: const Text('Are you sure you want to deactivate this account? The user will no longer be able to login.'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Deactivate', style: TextStyle(color: Colors.red))),
-                      ],
-                    ),
-                  ) ?? false;
-
-                  if (confirm) {
-                    final success = await AuthService.deleteUser(staff['id']);
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success ? 'User deactivated' : 'Deactivation failed')));
-                      _loadStaff();
-                    }
-                  }
-                },
-                child: const Text('DEACTIVATE', style: TextStyle(color: Colors.red)),
-              ),
-              if (!isCustomer)
-                TextButton(
-                  onPressed: () async {
-                    final success = await AuthService.updateUser(staff['id'], {
-                      'mobile': updateMobile.text,
-                      'address': updateAddress.text,
-                      'role': updateRole,
-                    });
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success ? 'User updated successfully!' : 'Update failed.')));
-                      _loadStaff();
-                    }
-                  },
-                  child: const Text('Update Profile'),
-                )
-            ],
-          ),
-        )
-    );
+            ));
   }
 
   void _logout() => confirmLogout(context);
@@ -188,51 +340,95 @@ class _AddUserViewState extends State<AddUserView> {
               child: ListView(
                 padding: const EdgeInsets.all(24.0),
                 children: [
-                  const Text('Add New Staff Member', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Add New Staff Member',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
+                    isExpanded:
+                        true, // long names use the full width and never overflow
                     initialValue: _role,
-                    items: ['Rider', 'Manager'].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                    items: ['Rider', 'Manager']
+                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                        .toList(),
                     onChanged: (val) => setState(() => _role = val!),
-                    decoration: const InputDecoration(labelText: 'Staff Profile Role Type'),
+                    decoration: const InputDecoration(
+                        labelText: 'Staff Profile Role Type'),
                   ),
-                  TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'Full Name'), validator: (v) => v!.isEmpty ? 'Required' : null),
-                  TextFormField(controller: _email, decoration: const InputDecoration(labelText: 'Email Address'), validator: Validators.validateEmail),
-                  TextFormField(controller: _pass, decoration: const InputDecoration(labelText: 'Security Password'), validator: (v) => v!.isEmpty ? 'Required' : null),
-                  TextFormField(controller: _cnic, decoration: const InputDecoration(labelText: 'CNIC (NNNNN-NNNNNNN-N)'), validator: Validators.validateCNIC),
-                  TextFormField(controller: _mobile, decoration: const InputDecoration(labelText: 'Mobile Phone (NNNN-NNNNNNN)'), validator: Validators.validateMobile),
-                  TextFormField(controller: _address, decoration: const InputDecoration(labelText: 'Address')),
+                  TextFormField(
+                      controller: _name,
+                      decoration: const InputDecoration(labelText: 'Full Name'),
+                      validator: (v) => v!.isEmpty ? 'Required' : null),
+                  TextFormField(
+                      controller: _email,
+                      decoration:
+                          const InputDecoration(labelText: 'Email Address'),
+                      validator: Validators.validateEmail),
+                  TextFormField(
+                      controller: _pass,
+                      decoration:
+                          const InputDecoration(labelText: 'Security Password'),
+                      validator: (v) => v!.isEmpty ? 'Required' : null),
+                  TextFormField(
+                      controller: _cnic,
+                      decoration: const InputDecoration(
+                          labelText: 'CNIC (NNNNN-NNNNNNN-N)'),
+                      validator: Validators.validateCNIC),
+                  TextFormField(
+                      controller: _mobile,
+                      decoration: const InputDecoration(
+                          labelText: 'Mobile Phone (NNNN-NNNNNNN)'),
+                      validator: Validators.validateMobile),
+                  TextFormField(
+                      controller: _address,
+                      decoration: const InputDecoration(labelText: 'Address')),
                   const SizedBox(height: 20),
-                  ElevatedButton(onPressed: _provision, style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white), child: const Text('PROVISION ACCESS ACCOUNT'))
+                  ElevatedButton(
+                      onPressed: _provision,
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          foregroundColor: Colors.white),
+                      child: const Text('PROVISION ACCESS ACCOUNT'))
                 ],
               ),
             ),
 
             // --- TAB 2: MANAGE USERS ---
-            _staffList.isEmpty
+            _staffList.isEmpty && _inactiveStaff.isEmpty
                 ? const Center(child: Text("No users found or loading..."))
                 : ListView.builder(
-              itemCount: _staffList.length,
-              itemBuilder: (_, idx) {
-                final staff = _staffList[idx];
-                final role = staff['role'] ?? 'Unknown';
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                        backgroundColor: role == 'Customer' ? Colors.green : Colors.indigo,
-                        foregroundColor: Colors.white,
-                        child: Text(role[0])
-                    ),
-                    title: Text('${staff['name']} ($role)', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Email: ${staff['email']}\nAddr: ${staff['address'] ?? 'N/A'}'),
-                    isThreeLine: true,
-                    onTap: () => _showUpdateDialog(staff),
-                    trailing: const Icon(Icons.edit, color: Colors.indigo),
+                    itemCount: _staffList.length + 1,
+                    itemBuilder: (_, idx) {
+                      if (idx == _staffList.length) {
+                        return _inactiveStaff.isEmpty
+                            ? const SizedBox(height: 24)
+                            : _inactiveSection();
+                      }
+                      final staff = _staffList[idx];
+                      final role = staff['role'] ?? 'Unknown';
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                              backgroundColor: role == 'Customer'
+                                  ? Colors.green
+                                  : Colors.indigo,
+                              foregroundColor: Colors.white,
+                              child: Text(role[0])),
+                          title: Text('${staff['name']} ($role)',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                              'Email: ${staff['email']}\nAddr: ${staff['address'] ?? 'N/A'}'),
+                          isThreeLine: true,
+                          onTap: () => _showUpdateDialog(staff),
+                          trailing:
+                              const Icon(Icons.edit, color: Colors.indigo),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
 
             // --- TAB 3: STORE MANAGEMENT ---
             const StoreAdminTab(),

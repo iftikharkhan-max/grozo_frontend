@@ -40,7 +40,9 @@ Future<void> reorder(BuildContext context, Order o) async {
   for (final line in o.extraItemLines) {
     // Lines were written as "name × qty"; older lists are free text.
     final m = RegExp(r'^(.*?)\s*[×x]\s*(\d+)$').firstMatch(line);
-    state.addCustomItem(m?.group(1)?.trim().isNotEmpty == true ? m!.group(1)!.trim() : line, int.tryParse(m?.group(2) ?? '') ?? 1);
+    state.addCustomItem(
+        m?.group(1)?.trim().isNotEmpty == true ? m!.group(1)!.trim() : line,
+        int.tryParse(m?.group(2) ?? '') ?? 1);
     added++;
   }
 
@@ -49,15 +51,20 @@ Future<void> reorder(BuildContext context, Order o) async {
         ? context.trf('reorder_some_missing', {'names': missing.join(', ')})
         : context.trf('reorder_done', {'n': added})),
   ));
-  if (added > 0) Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView()));
+  if (added > 0) {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const CartView()));
+  }
 }
 
 /// Stars / un-stars an order (Favorites tab in My Orders).
-Future<bool> setOrderFavorite(BuildContext context, Order o, bool favorite) async {
+Future<bool> setOrderFavorite(
+    BuildContext context, Order o, bool favorite) async {
   final res = await Api.put('/orders/${o.id}/favorite', {'favorite': favorite});
   if (res.ok && context.mounted) context.read<AppState>().ordersChanged();
   if (!res.ok && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(context, errorCode: res.errorCode))));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(friendlyError(context, errorCode: res.errorCode))));
   }
   return res.ok;
 }

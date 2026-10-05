@@ -1,6 +1,5 @@
 import '../utils/constants.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:grozo/services/api.dart';
 
 class OrderService {
@@ -12,7 +11,7 @@ class OrderService {
     int? managerId, // Added optional managerId for phone orders
   }) async {
     try {
-      final res = await http.post(
+      final res = await Api.client.post(
         Uri.parse('${Config.baseUrl}/orders'),
         headers: Api.jsonHeaders,
         body: jsonEncode({
@@ -31,7 +30,7 @@ class OrderService {
   static Future<List<dynamic>> fetchOrdersByRole(String endpointSegment,
       int id) async {
     try {
-      final res = await http.get(Uri.parse('${Config.baseUrl}/orders/$endpointSegment/$id'), headers: Api.authHeaders);
+      final res = await Api.client.get(Uri.parse('${Config.baseUrl}/orders/$endpointSegment/$id'), headers: Api.authHeaders);
       if (res.statusCode == 200) return jsonDecode(res.body);
     } catch (_) {}
     return [];
@@ -39,14 +38,14 @@ class OrderService {
 
   static Future<List<dynamic>> fetchGlobalPool() async {
     try {
-      final res = await http.get(Uri.parse('${Config.baseUrl}/orders/pool'), headers: Api.authHeaders);
+      final res = await Api.client.get(Uri.parse('${Config.baseUrl}/orders/pool'), headers: Api.authHeaders);
       if (res.statusCode == 200) return jsonDecode(res.body);
     } catch (_) {}
     return [];
   }
 
   static Future<bool> claimOrder(int orderId, int managerId) async {
-    final res = await http.put(
+    final res = await Api.client.put(
       Uri.parse('${Config.baseUrl}/orders/$orderId/claim'),
       headers: Api.jsonHeaders,
       body: jsonEncode({'managerId': managerId}),
@@ -56,7 +55,7 @@ class OrderService {
 
   static Future<bool> dispatchToRider(dynamic orderId, dynamic riderId) async {
     try {
-      final res = await http.post(
+      final res = await Api.client.post(
         Uri.parse('${Config.baseUrl}/orders/$orderId/dispatch'),
         headers: Api.jsonHeaders,
         body: jsonEncode({'riderId': riderId}),
@@ -69,7 +68,7 @@ class OrderService {
 
   static Future<bool> updateStatus(dynamic orderId, String status,
       {double? amount}) async {
-    final res = await http.put(
+    final res = await Api.client.put(
       Uri.parse('${Config.baseUrl}/orders/$orderId/status'),
       headers: Api.jsonHeaders,
       body: jsonEncode({'status': status, 'amount': amount}),
@@ -79,7 +78,7 @@ class OrderService {
 
   static Future<bool> cancelOrder(dynamic orderId) async {
     try {
-      final res = await http.delete(
+      final res = await Api.client.delete(
         Uri.parse('${Config.baseUrl}/orders/$orderId'), headers: Api.authHeaders,
       );
       return res.statusCode == 200;
@@ -95,7 +94,7 @@ class OrderService {
     required List<dynamic> items,
   }) async {
     try {
-      final res = await http.put(
+      final res = await Api.client.put(
         Uri.parse('${Config.baseUrl}/orders/$orderId'),
         headers: Api.jsonHeaders,
         body: jsonEncode({
@@ -115,7 +114,7 @@ class OrderService {
     try {
       // 1. Try fetching from confirmed working /admin endpoint
       try {
-        final res = await http.get(Uri.parse('${Config.baseUrl}/admin'), headers: Api.authHeaders);
+        final res = await Api.client.get(Uri.parse('${Config.baseUrl}/admin'), headers: Api.authHeaders);
         if (res.statusCode == 200) {
           final List<dynamic> users = jsonDecode(res.body);
           final filtered = users.where((u) {
@@ -128,7 +127,7 @@ class OrderService {
 
       // 2. Try fetching from /users endpoint
       try {
-        final res = await http.get(Uri.parse('${Config.baseUrl}/users?role=$role'), headers: Api.authHeaders);
+        final res = await Api.client.get(Uri.parse('${Config.baseUrl}/users?role=$role'), headers: Api.authHeaders);
         if (res.statusCode == 200) {
           final List<dynamic> users = jsonDecode(res.body);
           if (users.isNotEmpty) return users;
@@ -137,7 +136,7 @@ class OrderService {
 
       // 3. Try fetching from /admin/users endpoint
       try {
-        final adminRes = await http.get(Uri.parse('${Config.baseUrl}/admin/users'), headers: Api.authHeaders);
+        final adminRes = await Api.client.get(Uri.parse('${Config.baseUrl}/admin/users'), headers: Api.authHeaders);
         if (adminRes.statusCode == 200) {
           final List<dynamic> allUsers = jsonDecode(adminRes.body);
           final filtered = allUsers.where((u) {
@@ -154,7 +153,7 @@ class OrderService {
 
   static Future<Map<String, dynamic>> fetchReports(int userId, String role) async {
     try {
-      final res = await http.get(Uri.parse('${Config.baseUrl}/orders/reports/$userId/$role'), headers: Api.authHeaders);
+      final res = await Api.client.get(Uri.parse('${Config.baseUrl}/orders/reports/$userId/$role'), headers: Api.authHeaders);
       if (res.statusCode == 200) return jsonDecode(res.body);
     } catch (_) {}
     return {'count': 0, 'total': 0};

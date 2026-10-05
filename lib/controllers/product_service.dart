@@ -8,7 +8,7 @@ import '../utils/constants.dart';
 class ProductService {
   static Future<List<dynamic>> fetchCatalog() async {
     try {
-      final res = await http.get(Uri.parse('${Config.baseUrl}/products'), headers: Api.authHeaders);
+      final res = await Api.client.get(Uri.parse('${Config.baseUrl}/products'), headers: Api.authHeaders);
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
       }
@@ -46,10 +46,10 @@ class ProductService {
         );
         
         request.files.add(multipartFile);
-        var response = await request.send();
+        var response = await Api.client.send(request);
         return response.statusCode == 201 || response.statusCode == 200;
       } else {
-        final res = await http.post(
+        final res = await Api.client.post(
           Uri.parse('${Config.baseUrl}/products'),
           headers: Api.jsonHeaders,
           body: jsonEncode({

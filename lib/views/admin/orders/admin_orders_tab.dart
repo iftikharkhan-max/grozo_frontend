@@ -48,18 +48,24 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
   Future<void> _load() async {
     final results = await Future.wait([
       Api.get('/admin/summary'),
-      Api.get('/admin/orders', query: {'status': _filter, if (_search.text.trim().isNotEmpty) 'q': _search.text.trim()}),
+      Api.get('/admin/orders', query: {
+        'status': _filter,
+        if (_search.text.trim().isNotEmpty) 'q': _search.text.trim()
+      }),
     ]);
     if (!mounted) return;
     setState(() {
       if (results[0].ok) _summary = Map<String, dynamic>.from(results[0].data);
-      if (results[1].ok) _orders = List<Map<String, dynamic>>.from(results[1].data);
+      if (results[1].ok) {
+        _orders = List<Map<String, dynamic>>.from(results[1].data);
+      }
     });
     if (!results[1].ok) adminError(context, results[1]);
   }
 
   Future<void> _open(Map<String, dynamic> o) async {
-    final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => AdminOrderView(order: o)));
+    final changed = await Navigator.push<bool>(
+        context, MaterialPageRoute(builder: (_) => AdminOrderView(order: o)));
     if (changed == true) _load();
   }
 
@@ -108,9 +114,13 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
             ),
           ),
           if (_orders == null)
-            const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator()))
           else if (_orders!.isEmpty)
-            const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No orders found.')))
+            const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: Text('No orders found.')))
           else
             for (final o in _orders!) _orderTile(o),
         ],
@@ -119,16 +129,23 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
   }
 
   Widget _summaryCards(Map<String, dynamic> s) {
-    Widget card(String label, String value, IconData icon, Color color) => Expanded(
+    Widget card(String label, String value, IconData icon, Color color) =>
+        Expanded(
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(10),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(icon, color: color, size: 20),
-                const SizedBox(height: 4),
-                Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icon, color: color, size: 20),
+                    const SizedBox(height: 4),
+                    Text(value,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(label,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.black54)),
+                  ]),
             ),
           ),
         );
@@ -138,11 +155,17 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
       child: Column(children: [
         Row(children: [
           card('Orders today', '${s['today_orders']}', Icons.today, adminColor),
-          card('Delivered today', 'Rs. ${money(s['today_delivered_value'] as num)}', Icons.payments_outlined, Colors.green),
+          card(
+              'Delivered today',
+              'Rs. ${money(s['today_delivered_value'] as num)}',
+              Icons.payments_outlined,
+              Colors.green),
         ]),
         Row(children: [
-          card('Not yet claimed', '${s['unclaimed_orders']}', Icons.inbox_outlined, Colors.orange),
-          card('In progress', '${s['active_orders']}', Icons.local_shipping_outlined, Colors.blue),
+          card('Not yet claimed', '${s['unclaimed_orders']}',
+              Icons.inbox_outlined, Colors.orange),
+          card('In progress', '${s['active_orders']}',
+              Icons.local_shipping_outlined, Colors.blue),
         ]),
         if (low.isNotEmpty)
           Card(
@@ -150,7 +173,9 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
             child: ListTile(
               leading: Icon(Icons.warning_amber, color: Colors.orange.shade800),
               title: const Text('Low stock'),
-              subtitle: Text(low.map((p) => '${p['name']} (${p['stock_qty']})').join(', ')),
+              subtitle: Text(low
+                  .map((p) => '${p['name']} (${p['stock_qty']})')
+                  .join(', ')),
             ),
           ),
       ]),
@@ -172,10 +197,13 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
         onTap: () => _open(o),
         title: Row(children: [
           Expanded(
-            child: Text('${o['tracking_number']}${o['order_source'] == 'phone' ? '  •  📞 PHONE' : ''}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
+            child: Text(
+                '${o['tracking_number']}${o['order_source'] == 'phone' ? '  •  📞 PHONE' : ''}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
                 style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
-          Text(status, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(status,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.bold, fontSize: 12)),
         ]),
         subtitle: Text(
           '${o['customer_name'] ?? ''}  •  ${formatDateTime(placed)}\n'
@@ -214,7 +242,9 @@ class _AdminOrderViewState extends State<AdminOrderView> {
     _amount.text = '${double.tryParse('${o['amount']}')?.round() ?? ''}';
     Api.get('/admin').then((res) {
       if (!mounted || !res.ok) return;
-      setState(() => _riders = List<Map<String, dynamic>>.from(res.data).where((u) => u['role'] == 'Rider').toList());
+      setState(() => _riders = List<Map<String, dynamic>>.from(res.data)
+          .where((u) => u['role'] == 'Rider')
+          .toList());
     });
   }
 
@@ -242,14 +272,23 @@ class _AdminOrderViewState extends State<AdminOrderView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancel this order?'),
-        content: const Text('Reserved stock is returned and the customer is notified.'),
+        content: const Text(
+            'Reserved stock is returned and the customer is notified.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Cancel order', style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cancel order',
+                  style: TextStyle(color: Colors.red))),
         ],
       ),
     );
-    if (ok == true) _run(() => Api.post('/admin/orders/${o['id']}/cancel'), 'Order cancelled.');
+    if (ok == true) {
+      _run(() => Api.post('/admin/orders/${o['id']}/cancel'),
+          'Order cancelled.');
+    }
   }
 
   @override
@@ -258,32 +297,51 @@ class _AdminOrderViewState extends State<AdminOrderView> {
     return Scaffold(
       appBar: adminAppBar('${o['tracking_number']}'),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        Text('Status: $_status', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        Text('Placed: ${formatDateTime(DateTime.tryParse('${o['created_at']}')?.toLocal())}'),
+        Text('Status: $_status',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(
+            'Placed: ${formatDateTime(DateTime.tryParse('${o['created_at']}')?.toLocal())}'),
         if (o['manager_name'] != null) Text('Manager: ${o['manager_name']}'),
         const Divider(height: 24),
         StaffOrderInfo(o),
         if (open) ...[
           const Divider(height: 32),
           if (['Order Placed', 'Dispatched'].contains(_status)) ...[
-            adminSection(_status == 'Dispatched' ? 'Change rider' : 'Assign rider'),
+            adminSection(
+                _status == 'Dispatched' ? 'Change rider' : 'Assign rider'),
             DropdownButtonFormField<int>(
-              initialValue: _riders.any((r) => r['id'] == _riderId) ? _riderId : null,
+              isExpanded:
+                  true, // long names use the full width and never overflow
+              initialValue:
+                  _riders.any((r) => r['id'] == _riderId) ? _riderId : null,
               decoration: const InputDecoration(labelText: 'Rider'),
-              items: [for (final r in _riders) DropdownMenuItem(value: r['id'] as int, child: Text('${r['name']} (${r['mobile'] ?? ''})'))],
+              items: [
+                for (final r in _riders)
+                  DropdownMenuItem(
+                      value: r['id'] as int,
+                      child: Text('${r['name']} (${r['mobile'] ?? ''})'))
+              ],
               onChanged: (v) => setState(() => _riderId = v),
             ),
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: _busy || _riderId == null
                   ? null
-                  : () => _run(() => Api.post('/orders/${o['id']}/dispatch', {'riderId': _riderId}), 'Rider assigned.'),
+                  : () => _run(
+                      () => Api.post(
+                          '/orders/${o['id']}/dispatch', {'riderId': _riderId}),
+                      'Rider assigned.'),
               child: const Text('Dispatch to rider'),
             ),
           ],
           if (_status == 'Dispatched')
             OutlinedButton(
-              onPressed: _busy ? null : () => _run(() => Api.put('/orders/${o['id']}/status', {'status': 'In the way'}), 'Marked out for delivery.'),
+              onPressed: _busy
+                  ? null
+                  : () => _run(
+                      () => Api.put('/orders/${o['id']}/status',
+                          {'status': 'In the way'}),
+                      'Marked out for delivery.'),
               child: const Text('Mark out for delivery'),
             ),
           if (['Dispatched', 'In the way'].contains(_status)) ...[
@@ -294,15 +352,25 @@ class _AdminOrderViewState extends State<AdminOrderView> {
                   ? null
                   : () {
                       final amount = double.tryParse(_amount.text.trim());
-                      if (amount == null) return adminToast(context, 'Enter the cash collected.');
-                      _run(() => Api.put('/orders/${o['id']}/status', {'status': 'Delivered', 'amount': amount}), 'Marked delivered.');
+                      if (amount == null) {
+                        return adminToast(context, 'Enter the cash collected.');
+                      }
+                      _run(
+                          () => Api.put('/orders/${o['id']}/status',
+                              {'status': 'Delivered', 'amount': amount}),
+                          'Marked delivered.');
                     },
               child: const Text('Mark delivered'),
             ),
           ],
           if (_status == 'Delivered')
             ElevatedButton(
-              onPressed: _busy ? null : () => _run(() => Api.put('/orders/${o['id']}/status', {'status': 'Complete'}), 'Order completed.'),
+              onPressed: _busy
+                  ? null
+                  : () => _run(
+                      () => Api.put(
+                          '/orders/${o['id']}/status', {'status': 'Complete'}),
+                      'Order completed.'),
               child: const Text('Mark completed'),
             ),
           const SizedBox(height: 24),

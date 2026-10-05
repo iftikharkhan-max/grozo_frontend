@@ -11,7 +11,8 @@ class LoginRequired extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.tr(titleKey)), automaticallyImplyLeading: false),
+      appBar: AppBar(
+          title: Text(context.tr(titleKey)), automaticallyImplyLeading: false),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -20,9 +21,11 @@ class LoginRequired extends StatelessWidget {
             children: [
               const Icon(Icons.lock_outline, size: 64, color: brandGreen),
               const SizedBox(height: 16),
-              Text(context.tr('login_required_title'), style: Theme.of(context).textTheme.titleLarge),
+              Text(context.tr('login_required_title'),
+                  style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
-              Text(context.tr('login_required_body'), textAlign: TextAlign.center),
+              Text(context.tr('login_required_body'),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => openLogin(context),
@@ -36,8 +39,11 @@ class LoginRequired extends StatelessWidget {
   }
 }
 
-/// Opens the login screen. Returns true if the customer logged in.
+/// Opens the login screen full-screen (above the app's header and footer) and
+/// returns true if the customer logged in. The cart is kept.
 Future<bool> openLogin(BuildContext context) async {
-  final result = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const LoginView(returnOnSuccess: true)));
+  final result = await Navigator.of(context, rootNavigator: true).push<bool>(
+      MaterialPageRoute(
+          builder: (_) => const LoginView(returnOnSuccess: true)));
   return result == true;
 }

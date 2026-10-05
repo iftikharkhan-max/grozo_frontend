@@ -5,6 +5,7 @@ import '../../services/api.dart';
 import '../../utils/brand.dart';
 import '../cart/cart_view.dart';
 import '../common/product_widgets.dart';
+import '../shell/main_shell.dart';
 
 class ProductDetailView extends StatefulWidget {
   final Product product;
@@ -26,12 +27,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     final lang = context.lang;
 
-    return Scaffold(
+    return HidesOrderNowButton(
+        child: Scaffold(
       appBar: AppBar(
         title: Text(_p.displayName(lang)),
         actions: [
@@ -39,7 +40,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           IconButton(
             tooltip: context.tr('cart'),
             icon: const Icon(Icons.shopping_cart_outlined),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView())),
+            onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const CartView())),
           ),
         ],
       ),
@@ -50,12 +52,16 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             aspectRatio: 1.4,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Container(color: Colors.white, child: NetImage(_p.imageUrl, fit: BoxFit.contain)),
+              child: Container(
+                  color: Colors.white,
+                  child: NetImage(_p.imageUrl, fit: BoxFit.contain)),
             ),
           ),
           const SizedBox(height: 16),
-          Text(_p.displayName(lang), style: Theme.of(context).textTheme.headlineSmall),
-          if ((_p.unit ?? '').isNotEmpty) Text(_p.unit!, style: const TextStyle(color: Colors.black54)),
+          Text(_p.displayName(lang),
+              style: Theme.of(context).textTheme.headlineSmall),
+          if ((_p.unit ?? '').isNotEmpty)
+            Text(_p.unit!, style: const TextStyle(color: Colors.black54)),
           const SizedBox(height: 8),
           Row(children: [
             Flexible(child: PriceText(_p, fontSize: 22)),
@@ -63,15 +69,18 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: brandAccent, borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(
+                    color: brandAccent, borderRadius: BorderRadius.circular(6)),
                 child: Text('${_p.discountPercent}% ${context.tr('off')}',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           ]),
           const SizedBox(height: 8),
           Row(children: [
-            Icon(_p.available ? Icons.check_circle : Icons.cancel, color: _p.available ? brandGreen : Colors.red, size: 18),
+            Icon(_p.available ? Icons.check_circle : Icons.cancel,
+                color: _p.available ? brandGreen : Colors.red, size: 18),
             const SizedBox(width: 6),
             Text(
               !_p.available
@@ -79,7 +88,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   : _p.stockQty != null && _p.stockQty! <= 10
                       ? 'In stock (${_p.stockQty} left)'
                       : 'In stock',
-              style: TextStyle(color: _p.available ? brandGreen : Colors.red, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: _p.available ? brandGreen : Colors.red,
+                  fontWeight: FontWeight.w600),
             ),
           ]),
           if ((_p.description ?? '').isNotEmpty) ...[
@@ -94,6 +105,6 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           child: AddToCartControl(_p, compact: false),
         ),
       ),
-    );
+    ));
   }
 }

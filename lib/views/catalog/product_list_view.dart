@@ -49,11 +49,15 @@ class _ProductListViewState extends State<ProductListView> {
     final id = ++_requestId;
     setState(() => _loading = true);
     final res = await Api.get('/products', query: query);
-    if (!mounted || id != _requestId) return; // a newer search replaced this one
+    if (!mounted || id != _requestId) {
+      return; // a newer search replaced this one
+    }
     setState(() {
       _loading = false;
       _errorCode = res.ok ? null : (res.errorCode ?? 'generic');
-      if (res.ok) _products = (res.data as List).map((p) => Product.fromJson(p)).toList();
+      if (res.ok) {
+        _products = (res.data as List).map((p) => Product.fromJson(p)).toList();
+      }
     });
   }
 
@@ -65,7 +69,8 @@ class _ProductListViewState extends State<ProductListView> {
   @override
   Widget build(BuildContext context) {
     final lang = context.lang;
-    final emoji = widget.category == null ? '🛒' : categoryEmoji(widget.category!.name);
+    final emoji =
+        widget.category == null ? '🛒' : categoryEmoji(widget.category!.name);
 
     return Scaffold(
       appBar: AppBar(
@@ -94,7 +99,8 @@ class _ProductListViewState extends State<ProductListView> {
           IconButton(
             tooltip: context.tr('cart'),
             icon: const Icon(Icons.shopping_cart_outlined),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView())),
+            onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const CartView())),
           ),
         ],
       ),
@@ -103,7 +109,9 @@ class _ProductListViewState extends State<ProductListView> {
   }
 
   Widget _body(String emoji) {
-    if (_loading && _products.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_loading && _products.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (_errorCode != null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -115,17 +123,24 @@ class _ProductListViewState extends State<ProductListView> {
     }
     if (_products.isEmpty) {
       final text = widget.searchMode
-          ? (_search.text.trim().isEmpty ? context.tr('search_hint') : 'No products found matching your search.')
+          ? (_search.text.trim().isEmpty
+              ? context.tr('search_hint')
+              : 'No products found matching your search.')
           : context.tr('no_products_yet');
-      return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(text, textAlign: TextAlign.center)));
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(text, textAlign: TextAlign.center)));
     }
     return RefreshIndicator(
       onRefresh: _load,
       child: GridView.builder(
         padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200, mainAxisExtent: 240),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 200, mainAxisExtent: 240),
         itemCount: _products.length,
-        itemBuilder: (ctx, i) => ProductCard(_products[i], width: double.infinity, fallbackEmoji: emoji),
+        itemBuilder: (ctx, i) => ProductCard(_products[i],
+            width: double.infinity, fallbackEmoji: emoji),
       ),
     );
   }

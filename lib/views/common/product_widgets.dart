@@ -16,7 +16,12 @@ class NetImage extends StatelessWidget {
   final BoxFit fit;
   final String fallbackEmoji;
 
-  const NetImage(this.path, {super.key, this.width, this.height, this.fit = BoxFit.cover, this.fallbackEmoji = '🛒'});
+  const NetImage(this.path,
+      {super.key,
+      this.width,
+      this.height,
+      this.fit = BoxFit.cover,
+      this.fallbackEmoji = '🛒'});
 
   @override
   Widget build(BuildContext context) {
@@ -39,16 +44,23 @@ class NetImage extends StatelessWidget {
       width: width,
       height: height,
       fit: fit,
-      cacheWidth: width != null ? (width! * MediaQuery.devicePixelRatioOf(context)).round() : null,
+      cacheWidth: width != null
+          ? (width! * MediaQuery.devicePixelRatioOf(context)).round()
+          : null,
       loadingBuilder: (ctx, child, progress) => progress == null
           ? child
-          : SizedBox(width: width, height: height, child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+          : SizedBox(
+              width: width,
+              height: height,
+              child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2))),
       errorBuilder: (ctx, err, stack) => fallback,
     );
   }
 }
 
-String money(num v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+String money(num v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
 /// Price with the original price struck through when discounted.
 class PriceText extends StatelessWidget {
@@ -63,11 +75,16 @@ class PriceText extends StatelessWidget {
       spacing: 6,
       children: [
         Text('Rs. ${money(product.finalPrice)}',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize, color: brandPrimary)),
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: fontSize,
+                color: brandPrimary)),
         if (product.hasDiscount)
           Text('Rs. ${money(product.price)}',
               style: TextStyle(
-                  fontSize: fontSize - 3, color: Colors.black45, decoration: TextDecoration.lineThrough)),
+                  fontSize: fontSize - 3,
+                  color: Colors.black45,
+                  decoration: TextDecoration.lineThrough)),
       ],
     );
   }
@@ -86,7 +103,8 @@ class AddToCartControl extends StatelessWidget {
 
     if (!product.available) {
       return Text(context.tr('out_of_stock'),
-          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 12));
+          style: const TextStyle(
+              color: Colors.red, fontWeight: FontWeight.w600, fontSize: 12));
     }
 
     if (qty == 0) {
@@ -97,7 +115,8 @@ class AddToCartControl extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: brandGreen,
             padding: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
           onPressed: () => addWithFeedback(context, product),
           icon: const Icon(Icons.add, size: 18),
@@ -108,13 +127,28 @@ class AddToCartControl extends StatelessWidget {
 
     return Container(
       height: compact ? 32 : 44,
-      decoration: BoxDecoration(color: brandGreenLight, borderRadius: BorderRadius.circular(8), border: Border.all(color: brandGreen)),
+      decoration: BoxDecoration(
+          color: brandGreenLight,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: brandGreen)),
+      // − and + share the width, so the stepper fits even narrow deal cards.
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _StepButton(icon: Icons.remove, label: 'Decrease quantity', onTap: () => state.setQty(product.id, qty - 1)),
-          Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          _StepButton(icon: Icons.add, label: 'Increase quantity', onTap: () => addWithFeedback(context, product, quiet: true)),
+          Expanded(
+            child: _StepButton(
+                icon: Icons.remove,
+                label: 'Decrease quantity',
+                onTap: () => state.setQty(product.id, qty - 1)),
+          ),
+          Text('$qty',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          Expanded(
+            child: _StepButton(
+                icon: Icons.add,
+                label: 'Increase quantity',
+                onTap: () => addWithFeedback(context, product, quiet: true)),
+          ),
         ],
       ),
     );
@@ -125,7 +159,8 @@ class _StepButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _StepButton({required this.icon, required this.label, required this.onTap});
+  const _StepButton(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -133,7 +168,9 @@ class _StepButton extends StatelessWidget {
         label: label,
         child: InkWell(
           onTap: onTap,
-          child: SizedBox(width: 40, height: double.infinity, child: Icon(icon, size: 18, color: brandPrimary)),
+          child: SizedBox(
+              height: double.infinity,
+              child: Icon(icon, size: 18, color: brandPrimary)),
         ),
       );
 }
@@ -143,10 +180,13 @@ void addWithFeedback(BuildContext context, Product p, {bool quiet = false}) {
   final messenger = ScaffoldMessenger.of(context);
   if (!added) {
     messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(content: Text(context.tr('max_qty_reached'))));
+    messenger
+        .showSnackBar(SnackBar(content: Text(context.tr('max_qty_reached'))));
   } else if (!quiet) {
     messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(content: Text(context.tr('added_to_cart')), duration: const Duration(seconds: 1)));
+    messenger.showSnackBar(SnackBar(
+        content: Text(context.tr('added_to_cart')),
+        duration: const Duration(seconds: 1)));
   }
 }
 
@@ -155,7 +195,8 @@ class FavoriteButton extends StatelessWidget {
   final int productId;
   final Color idleColor;
   final double size;
-  const FavoriteButton(this.productId, {super.key, this.idleColor = Colors.black45, this.size = 22});
+  const FavoriteButton(this.productId,
+      {super.key, this.idleColor = Colors.black45, this.size = 22});
 
   @override
   Widget build(BuildContext context) {
@@ -163,87 +204,116 @@ class FavoriteButton extends StatelessWidget {
     return IconButton(
       tooltip: context.tr(fav ? 'remove_favorite' : 'add_favorite'),
       visualDensity: VisualDensity.compact,
-      icon: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? Colors.redAccent : idleColor, size: size),
+      icon: Icon(fav ? Icons.favorite : Icons.favorite_border,
+          color: fav ? Colors.redAccent : idleColor, size: size),
       onPressed: () async {
         final state = context.read<AppState>();
         if (!state.isLoggedIn && !await openLogin(context)) return;
         final ok = await state.toggleFavorite(productId);
         if (!ok && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('favorite_failed'))));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.tr('favorite_failed'))));
         }
       },
     );
   }
 }
 
-void openProduct(BuildContext context, Product p) =>
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailView(product: p)));
+void openProduct(BuildContext context, Product p) => Navigator.push(
+    context, MaterialPageRoute(builder: (_) => ProductDetailView(product: p)));
 
 /// Compact product card used in horizontal strips and grids.
 class ProductCard extends StatelessWidget {
   final Product product;
   final double width;
   final String fallbackEmoji;
-  const ProductCard(this.product, {super.key, this.width = 140, this.fallbackEmoji = '🛒'});
+  const ProductCard(this.product,
+      {super.key, this.width = 140, this.fallbackEmoji = '🛒'});
 
   @override
   Widget build(BuildContext context) {
     final lang = context.lang;
     return SizedBox(
       width: width,
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        elevation: 1.5,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: InkWell(
-          onTap: () => openProduct(context, product),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: NetImage(product.imageUrl, fit: BoxFit.contain, fallbackEmoji: fallbackEmoji),
-                        ),
-                      ),
-                      if (product.hasDiscount)
-                        PositionedDirectional(
-                          top: 0,
-                          start: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: brandAccent, borderRadius: BorderRadius.circular(6)),
-                            child: Text('${product.discountPercent}% ${context.tr('off')}',
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+      child: LayoutBuilder(builder: (context, box) {
+        // In short strips (e.g. the one-screen home page) drop the unit line and
+        // tighten spacing so the card never overflows.
+        final tight = box.maxHeight < 190;
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          elevation: 1.5,
+          color: Colors.white,
+          margin: EdgeInsets.all(tight ? 2 : 4),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            onTap: () => openProduct(context, product),
+            child: Padding(
+              padding: EdgeInsets.all(tight ? 6 : 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: NetImage(product.imageUrl,
+                                fit: BoxFit.contain,
+                                fallbackEmoji: fallbackEmoji),
                           ),
                         ),
-                      PositionedDirectional(
-                        top: -8,
-                        end: -8,
-                        child: FavoriteButton(product.id, size: 20),
-                      ),
-                    ],
+                        if (product.hasDiscount)
+                          PositionedDirectional(
+                            top: 0,
+                            start: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: brandAccent,
+                                  borderRadius: BorderRadius.circular(6)),
+                              child: Text(
+                                  '${product.discountPercent}% ${context.tr('off')}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        PositionedDirectional(
+                          top: -8,
+                          end: -8,
+                          child: FavoriteButton(product.id, size: 20),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(product.displayName(lang),
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-                if ((product.unit ?? '').isNotEmpty)
-                  Text(product.unit!, maxLines: 1, style: const TextStyle(fontSize: 11, color: Colors.black54)),
-                PriceText(product, fontSize: 13),
-                const SizedBox(height: 6),
-                AddToCartControl(product),
-              ],
+                  SizedBox(height: tight ? 2 : 6),
+                  Text(product.displayName(lang),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
+                  if (!tight && (product.unit ?? '').isNotEmpty)
+                    Text(product.unit!,
+                        maxLines: 1,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.black54)),
+                  // One line even on narrow cards (price + crossed-out price).
+                  FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: PriceText(product, fontSize: 13)),
+                  SizedBox(height: tight ? 3 : 6),
+                  AddToCartControl(product),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }

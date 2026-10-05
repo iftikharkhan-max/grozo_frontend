@@ -14,17 +14,25 @@ class StaffOrderInfo extends StatelessWidget {
     final phone = (raw['customer_mobile'] ?? o.contactMobile ?? '').toString();
     final lat = double.tryParse('${raw['address_latitude']}');
     final lng = double.tryParse('${raw['address_longitude']}');
-    final destination = lat != null && lng != null ? '$lat,$lng' : (o.destination ?? '');
+    final destination =
+        lat != null && lng != null ? '$lat,$lng' : (o.destination ?? '');
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (o.isPhoneOrder)
         Container(
           margin: const EdgeInsets.only(bottom: 4),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
-          child: const Text('📞 PHONE ORDER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue)),
+          decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(6)),
+          child: const Text('📞 PHONE ORDER',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.blue)),
         ),
-      _line(Icons.person_outline, '${o.contactName ?? raw['customer_name'] ?? 'Customer'}'),
+      _line(Icons.person_outline,
+          '${o.contactName ?? raw['customer_name'] ?? 'Customer'}'),
       if (phone.isNotEmpty)
         InkWell(
           onTap: () => launchUrl(Uri(scheme: 'tel', path: phone)),
@@ -33,18 +41,26 @@ class StaffOrderInfo extends StatelessWidget {
       InkWell(
         onTap: destination.isEmpty
             ? null
-            : () => launchUrl(Uri.https('www.google.com', '/maps/dir/', {'api': '1', 'destination': destination}),
+            : () => launchUrl(
+                Uri.https('www.google.com', '/maps/dir/',
+                    {'api': '1', 'destination': destination}),
                 mode: LaunchMode.externalApplication),
-        child: _line(Icons.location_on_outlined, o.destination ?? 'No address', color: destination.isEmpty ? null : Colors.blue),
+        child: _line(Icons.location_on_outlined, o.destination ?? 'No address',
+            color: destination.isEmpty ? null : Colors.blue),
       ),
       if (o.extraItemLines.isNotEmpty)
         Container(
           width: double.infinity,
           margin: const EdgeInsets.symmetric(vertical: 6),
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('BUY FROM MARKET (price at delivery):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('BUY FROM MARKET (price at delivery):',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             const SizedBox(height: 4),
             Text(o.requestText ?? ''),
           ]),
@@ -55,12 +71,15 @@ class StaffOrderInfo extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 1),
             child: Row(children: [
-              Expanded(child: Text('• ${l.name}${(l.unit ?? '').isNotEmpty ? ' (${l.unit})' : ''}  × ${l.qty}')),
+              Expanded(
+                  child: Text(
+                      '• ${l.name}${(l.unit ?? '').isNotEmpty ? ' (${l.unit})' : ''}  × ${l.qty}')),
               if (l.price > 0) Text('Rs. ${money(l.lineTotal)}'),
             ]),
           ),
       ],
-      if ((o.note ?? '').isNotEmpty) _line(Icons.sticky_note_2_outlined, 'Note: ${o.note}'),
+      if ((o.note ?? '').isNotEmpty)
+        _line(Icons.sticky_note_2_outlined, 'Note: ${o.note}'),
       const SizedBox(height: 6),
       if (o.deliveryMethod == 'delivery' && raw['subtotal'] != null)
         Text(

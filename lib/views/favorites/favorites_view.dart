@@ -30,7 +30,9 @@ class _FavoritesViewState extends State<FavoritesView> {
     if (!mounted) return;
     setState(() {
       _errorCode = res.ok ? null : (res.errorCode ?? 'generic');
-      if (res.ok) _products = (res.data as List).map((p) => Product.fromJson(p)).toList();
+      if (res.ok) {
+        _products = (res.data as List).map((p) => Product.fromJson(p)).toList();
+      }
     });
   }
 
@@ -44,7 +46,9 @@ class _FavoritesViewState extends State<FavoritesView> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.tr('favorites')), automaticallyImplyLeading: false),
+      appBar: AppBar(
+          title: Text(context.tr('favorites')),
+          automaticallyImplyLeading: false),
       body: _body(),
     );
   }
@@ -59,7 +63,9 @@ class _FavoritesViewState extends State<FavoritesView> {
         ]),
       );
     }
-    if (_products == null) return const Center(child: CircularProgressIndicator());
+    if (_products == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (_products!.isEmpty) {
       return RefreshIndicator(
         onRefresh: _load,
@@ -75,9 +81,11 @@ class _FavoritesViewState extends State<FavoritesView> {
       onRefresh: _load,
       child: GridView.builder(
         padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200, mainAxisExtent: 240),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 200, mainAxisExtent: 240),
         itemCount: _products!.length,
-        itemBuilder: (ctx, i) => ProductCard(_products![i], width: double.infinity),
+        itemBuilder: (ctx, i) =>
+            ProductCard(_products![i], width: double.infinity),
       ),
     );
   }

@@ -33,21 +33,30 @@ class _CategoriesAdminViewState extends State<CategoriesAdminView> {
   }
 
   Future<void> _edit([Map<String, dynamic>? c]) async {
-    final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => CategoryEditView(category: c)));
+    final saved = await Navigator.push<bool>(context,
+        MaterialPageRoute(builder: (_) => CategoryEditView(category: c)));
     if (saved == true) _load();
   }
 
   @override
   Widget build(BuildContext context) {
     Widget group(String title, String key) {
-      final list = (_items ?? []).where((c) => c['display_group'] == key).toList();
+      final list =
+          (_items ?? []).where((c) => c['display_group'] == key).toList();
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 4), child: adminSection(title)),
+        Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: adminSection(title)),
         for (final c in list)
           ListTile(
-            leading: SizedBox(width: 44, height: 44, child: NetImage(c['image_url'], fallbackEmoji: categoryEmoji('${c['name']}'))),
+            leading: SizedBox(
+                width: 44,
+                height: 44,
+                child: NetImage(c['image_url'],
+                    fallbackEmoji: categoryEmoji('${c['name']}'))),
             title: Text('${c['name']}  ${c['name_ur'] ?? ''}'),
-            subtitle: Text('Order: ${c['sort_order']}${truthy(c['is_active']) ? '' : '  •  Hidden'}'),
+            subtitle: Text(
+                'Order: ${c['sort_order']}${truthy(c['is_active']) ? '' : '  •  Hidden'}'),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () => _edit(c),
           ),
@@ -67,10 +76,13 @@ class _CategoriesAdminViewState extends State<CategoriesAdminView> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: ListView(padding: const EdgeInsets.only(bottom: 88), children: [
-                group('Featured on home page (big cards + product strips)', 'featured'),
-                group('Market Shopping tiles', 'market'),
-              ]),
+              child: ListView(
+                  padding: const EdgeInsets.only(bottom: 88),
+                  children: [
+                    group('Featured on home page (big cards + product strips)',
+                        'featured'),
+                    group('Market Shopping tiles', 'market'),
+                  ]),
             ),
     );
   }
@@ -127,29 +139,41 @@ class _CategoryEditViewState extends State<CategoryEditView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: adminAppBar(widget.category == null ? 'Add category' : 'Edit category'),
+      appBar: adminAppBar(
+          widget.category == null ? 'Add category' : 'Edit category'),
       bottomNavigationBar: AdminSaveButton(busy: _busy, onPressed: _save),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          AdminImagePicker(currentUrl: c['image_url'], picked: _image, onPicked: (f) => setState(() => _image = f)),
+          AdminImagePicker(
+              currentUrl: c['image_url'],
+              picked: _image,
+              onPicked: (f) => setState(() => _image = f)),
           adminText(_name, 'Name (English)', required: true),
           adminText(_nameUr, 'Name (Urdu)', direction: TextDirection.rtl),
-          adminText(_subtitle, 'Short line (English)', hint: 'e.g. Fresh & Healthy'),
-          adminText(_subtitleUr, 'Short line (Urdu)', direction: TextDirection.rtl),
+          adminText(_subtitle, 'Short line (English)',
+              hint: 'e.g. Fresh & Healthy'),
+          adminText(_subtitleUr, 'Short line (Urdu)',
+              direction: TextDirection.rtl),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: DropdownButtonFormField<String>(
+              isExpanded:
+                  true, // long names use the full width and never overflow
               initialValue: _group,
               decoration: const InputDecoration(labelText: 'Where it appears'),
               items: const [
-                DropdownMenuItem(value: 'featured', child: Text('Featured (big card + product strip)')),
-                DropdownMenuItem(value: 'market', child: Text('Market Shopping tile')),
+                DropdownMenuItem(
+                    value: 'featured',
+                    child: Text('Featured (big card + product strip)')),
+                DropdownMenuItem(
+                    value: 'market', child: Text('Market Shopping tile')),
               ],
               onChanged: (v) => setState(() => _group = v!),
             ),
           ),
-          adminNumber(_order, 'Display order', hint: 'Smaller numbers appear first', decimal: false),
+          adminNumber(_order, 'Display order',
+              hint: 'Smaller numbers appear first', decimal: false),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Visible in the app'),

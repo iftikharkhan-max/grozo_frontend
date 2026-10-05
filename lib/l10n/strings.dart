@@ -229,6 +229,16 @@ const Map<String, Map<String, String>> _strings = {
 
   // Branches
   'select_branch': {'en': 'Choose a branch', 'ur': 'برانچ منتخب کریں'},
+  'branch_choose_hint': {'en': 'Choose the branch that will prepare and deliver your order.', 'ur': 'وہ برانچ منتخب کریں جو آپ کا آرڈر تیار کر کے پہنچائے گی۔'},
+  'need_branch': {'en': 'Please choose a branch first.', 'ur': 'براہ کرم پہلے برانچ منتخب کریں۔'},
+  'branch_unavailable': {'en': 'That branch is not taking orders right now. Please choose another branch.', 'ur': 'یہ برانچ اس وقت آرڈر نہیں لے رہی۔ براہ کرم کوئی اور برانچ منتخب کریں۔'},
+  'open_now': {'en': 'Open now', 'ur': 'ابھی کھلی ہے'},
+  'closed_now': {'en': 'Closed now', 'ur': 'ابھی بند ہے'},
+  'km_away': {'en': '{km} km away', 'ur': '{km} کلومیٹر دور'},
+  'delivery_rs': {'en': 'Delivery Rs. {n}', 'ur': 'ڈیلیوری {n} روپے'},
+  'branch_outside_area': {'en': 'Does not deliver to this address', 'ur': 'اس پتے پر ڈیلیوری نہیں کرتی'},
+  'after_branch': {'en': 'After choosing a branch', 'ur': 'برانچ منتخب کرنے کے بعد'},
+  'branch_distance_hint': {'en': 'Add your location to the delivery address to see distances and charges.', 'ur': 'فاصلہ اور چارجز دیکھنے کے لیے ڈیلیوری کے پتے میں اپنی لوکیشن شامل کریں۔'},
   'view_on_map': {'en': 'View on map', 'ur': 'نقشے پر دیکھیں'},
   'location': {'en': 'Location', 'ur': 'مقام'},
 

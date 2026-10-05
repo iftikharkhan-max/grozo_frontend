@@ -5,10 +5,13 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <application
-        android:label="grozo"
+        android:label="Grozo"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
+        android:allowBackup="false"
         android:usesCleartextTraffic="true">
+        <!-- allowBackup=false: a restored backup holds a login that this phone's
+             keystore cannot decrypt, which logged customers out (flutter_secure_storage). -->
 
         <activity
             android:name=".MainActivity"

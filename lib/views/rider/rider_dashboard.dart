@@ -21,9 +21,11 @@ class _RiderDashboardState extends State<RiderDashboard> {
   final Map<dynamic, TextEditingController> _amounts = {};
 
   TextEditingController _amountFor(Map o) => _amounts.putIfAbsent(o['id'], () {
-        final order = Order.fromJson(Map<String, dynamic>.from(o)..putIfAbsent('items', () => const []));
+        final order = Order.fromJson(
+            Map<String, dynamic>.from(o)..putIfAbsent('items', () => const []));
         // Pre-fill the known total; market requests / unknown delivery charge must be entered.
-        return TextEditingController(text: order.totalPending ? '' : order.amount.toStringAsFixed(0));
+        return TextEditingController(
+            text: order.totalPending ? '' : order.amount.toStringAsFixed(0));
       });
 
   @override
@@ -50,7 +52,8 @@ class _RiderDashboardState extends State<RiderDashboard> {
     if (!mounted) return;
     setState(() => _activeAssignments = data);
     // Resume live location after the app was closed during a delivery.
-    final inTransit = data.where((o) => o['status'] == 'In the way').firstOrNull;
+    final inTransit =
+        data.where((o) => o['status'] == 'In the way').firstOrNull;
     if (inTransit != null) {
       _loc.startTrackingRider(inTransit['id'], widget.user.id);
     } else {
@@ -79,8 +82,7 @@ class _RiderDashboardState extends State<RiderDashboard> {
             actions: [
               IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
               IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
-            ]
-        ),
+            ]),
         body: TabBarView(
           children: [
             // Tab 1: Deliveries
@@ -91,7 +93,8 @@ class _RiderDashboardState extends State<RiderDashboard> {
                       physics: AlwaysScrollableScrollPhysics(),
                       child: SizedBox(
                         height: 400,
-                        child: Center(child: Text("No active deliveries assigned.")),
+                        child: Center(
+                            child: Text("No active deliveries assigned.")),
                       ),
                     )
                   : ListView.builder(
@@ -110,9 +113,11 @@ class _RiderDashboardState extends State<RiderDashboard> {
                         }
 
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
@@ -121,26 +126,37 @@ class _RiderDashboardState extends State<RiderDashboard> {
                                 Row(
                                   children: [
                                     CircleAvatar(
-                                      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                                      child: Icon(Icons.person, color: theme.colorScheme.primary),
+                                      backgroundColor: theme.colorScheme.primary
+                                          .withValues(alpha: 0.1),
+                                      child: Icon(Icons.person,
+                                          color: theme.colorScheme.primary),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            o['customer_name'] ?? 'Unknown Customer',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            o['customer_name'] ??
+                                                'Unknown Customer',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16),
                                           ),
-                                          Text('Assigned: $dateStr', style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                                          Text('Assigned: $dateStr',
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.blue)),
                                         ],
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                        color: theme.colorScheme.secondary
+                                            .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -162,8 +178,18 @@ class _RiderDashboardState extends State<RiderDashboard> {
                                     width: double.infinity,
                                     child: ElevatedButton.icon(
                                       onPressed: () async {
-                                        await OrderService.updateStatus(o['id'], 'In the way');
-                                        _loc.startTrackingRider(o['id'], widget.user.id);
+                                        await OrderService.updateStatus(
+                                            o['id'], 'In the way');
+                                        final sharing =
+                                            await _loc.startTrackingRider(
+                                                o['id'], widget.user.id);
+                                        if (!sharing && context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                            content: Text(
+                                                'Turn on location (GPS) so the customer can follow the delivery.'),
+                                          ));
+                                        }
                                         _refresh();
                                       },
                                       icon: const Icon(Icons.directions_bike),
@@ -184,22 +210,32 @@ class _RiderDashboardState extends State<RiderDashboard> {
                                     width: double.infinity,
                                     child: ElevatedButton.icon(
                                       onPressed: () async {
-                                        final amount = double.tryParse(_amountFor(o).text.trim());
+                                        final amount = double.tryParse(
+                                            _amountFor(o).text.trim());
                                         if (amount == null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Enter the total cash collected from the customer.')),
-                                          );
+                                          // Replace any earlier message so this one shows at once.
+                                          ScaffoldMessenger.of(context)
+                                            ..hideCurrentSnackBar()
+                                            ..showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Enter the total cash collected from the customer.')),
+                                            );
                                           return;
                                         }
                                         _loc.stopTracking();
-                                        await OrderService.updateStatus(o['id'], 'Delivered', amount: amount);
+                                        await OrderService.updateStatus(
+                                            o['id'], 'Delivered',
+                                            amount: amount);
                                         _amounts.remove(o['id'])?.dispose();
                                         _refresh();
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: theme.colorScheme.secondary,
+                                        backgroundColor:
+                                            theme.colorScheme.secondary,
                                       ),
-                                      icon: const Icon(Icons.check_circle_outline),
+                                      icon: const Icon(
+                                          Icons.check_circle_outline),
                                       label: const Text('CONFIRM DELIVERY'),
                                     ),
                                   )
@@ -216,11 +252,18 @@ class _RiderDashboardState extends State<RiderDashboard> {
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  const Text('Earnings & Performance', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text('Earnings & Performance',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 30),
-                  _buildReportCard('Finalized Orders', _report['count'].toString(), Icons.done_all, Colors.green),
+                  _buildReportCard(
+                      'Finalized Orders',
+                      _report['count'].toString(),
+                      Icons.done_all,
+                      Colors.green),
                   const SizedBox(height: 20),
-                  _buildReportCard('Total Cash Handled', 'PKR ${_report['total']}', Icons.payments, Colors.orange),
+                  _buildReportCard('Total Cash Handled',
+                      'PKR ${_report['total']}', Icons.payments, Colors.orange),
                 ],
               ),
             )
@@ -230,7 +273,8 @@ class _RiderDashboardState extends State<RiderDashboard> {
     );
   }
 
-  Widget _buildReportCard(String title, String val, IconData icon, Color color) {
+  Widget _buildReportCard(
+      String title, String val, IconData icon, Color color) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -238,14 +282,25 @@ class _RiderDashboardState extends State<RiderDashboard> {
         padding: const EdgeInsets.all(20.0),
         child: Row(
           children: [
-            CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: Icon(icon, color: color)),
+            CircleAvatar(
+                backgroundColor: color.withValues(alpha: 0.1),
+                child: Icon(icon, color: color)),
             const SizedBox(width: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(color: Colors.grey)),
-                Text(val, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              ],
+            // Takes the remaining width; large amounts or phone font sizes shrink to fit.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(color: Colors.grey)),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(val,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             )
           ],
         ),

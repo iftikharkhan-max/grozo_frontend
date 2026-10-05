@@ -36,15 +36,22 @@ class _BroadcastAdminViewState extends State<BroadcastAdminView> {
 
   Future<void> _send() async {
     if (!_form.currentState!.validate()) return;
-    if (_linkType != 'none' && _linkId == null) return adminToast(context, 'Choose what the notification opens.');
+    if (_linkType != 'none' && _linkId == null) {
+      return adminToast(context, 'Choose what the notification opens.');
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Send to all customers?'),
-        content: const Text('Every customer who allows offers & deals will receive this. It cannot be recalled.'),
+        content: const Text(
+            'Every customer who allows offers & deals will receive this. It cannot be recalled.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Send')),
         ],
       ),
     );
@@ -73,21 +80,28 @@ class _BroadcastAdminViewState extends State<BroadcastAdminView> {
     final targets = _linkType == 'category' ? _categories : _products;
     return Scaffold(
       appBar: adminAppBar('Send notification'),
-      bottomNavigationBar: AdminSaveButton(busy: _busy, onPressed: _send, label: 'SEND'),
+      bottomNavigationBar:
+          AdminSaveButton(busy: _busy, onPressed: _send, label: 'SEND'),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          const Text('Customers see this in the app under 🔔 Notifications.', style: TextStyle(color: Colors.black54)),
+          const Text('Customers see this in the app under 🔔 Notifications.',
+              style: TextStyle(color: Colors.black54)),
           const SizedBox(height: 12),
-          adminText(_title, 'Title (English)', required: true, hint: 'e.g. Mango season is here!'),
+          adminText(_title, 'Title (English)',
+              required: true, hint: 'e.g. Mango season is here!'),
           adminText(_titleUr, 'Title (Urdu)', direction: TextDirection.rtl),
           adminText(_body, 'Message (English)', maxLines: 3),
-          adminText(_bodyUr, 'Message (Urdu)', maxLines: 3, direction: TextDirection.rtl),
+          adminText(_bodyUr, 'Message (Urdu)',
+              maxLines: 3, direction: TextDirection.rtl),
           adminSection('When tapped, open'),
           DropdownButtonFormField<String>(
+            isExpanded:
+                true, // long names use the full width and never overflow
             initialValue: _linkType,
             items: const [
-              DropdownMenuItem(value: 'none', child: Text('Nothing (message only)')),
+              DropdownMenuItem(
+                  value: 'none', child: Text('Nothing (message only)')),
               DropdownMenuItem(value: 'category', child: Text('A category')),
               DropdownMenuItem(value: 'product', child: Text('A product')),
             ],
@@ -100,9 +114,17 @@ class _BroadcastAdminViewState extends State<BroadcastAdminView> {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: DropdownButtonFormField<int>(
+                isExpanded:
+                    true, // long names use the full width and never overflow
                 initialValue: _linkId,
-                decoration: InputDecoration(labelText: _linkType == 'category' ? 'Category' : 'Product'),
-                items: [for (final t in targets) DropdownMenuItem(value: t['id'] as int, child: Text('${t['name']}'))],
+                decoration: InputDecoration(
+                    labelText:
+                        _linkType == 'category' ? 'Category' : 'Product'),
+                items: [
+                  for (final t in targets)
+                    DropdownMenuItem(
+                        value: t['id'] as int, child: Text('${t['name']}'))
+                ],
                 onChanged: (v) => setState(() => _linkId = v),
               ),
             ),

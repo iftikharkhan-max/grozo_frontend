@@ -32,6 +32,10 @@ class HomeData {
             List<Map<String, dynamic>>.from(j['delivery_charges'] ?? []);
 }
 
+/// Bumped by MainShell when the customer returns to the Home tab, so categories
+/// and offers the admin added since are shown without restarting the app.
+final homeRefresh = ValueNotifier<int>(0);
+
 /// Home page (the header and footer come from MainShell).
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -40,18 +44,41 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends State<HomeView> {
+class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
   HomeData? _data;
   String? _errorCode;
   bool _loading = true;
+  DateTime? _loadedAt;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    homeRefresh.addListener(_refreshIfStale);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    homeRefresh.removeListener(_refreshIfStale);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) _refreshIfStale();
+  }
+
+  /// Quietly reloads (keeping the current page on screen) unless it just loaded.
+  void _refreshIfStale() {
+    final at = _loadedAt;
+    if (at != null && DateTime.now().difference(at).inSeconds < 20) return;
     _load();
   }
 
   Future<void> _load() async {
+    _loadedAt = DateTime.now();
     final res = await Api.get('/home');
     if (!mounted) return;
     setState(() {
@@ -61,6 +88,7 @@ class _HomeViewState extends State<HomeView> {
         _errorCode = null;
       } else {
         _errorCode = res.errorCode ?? 'generic';
+        _loadedAt = null; // try again on the next visit
       }
     });
   }
@@ -70,72 +98,85 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    // The whole home page fits one screen: sections share the available height
+    // instead of scrolling. The scroll view is only there for pull-to-refresh.
     return Scaffold(
       backgroundColor: Colors.white,
       body: RefreshIndicator(
         onRefresh: _load,
-        child: CustomScrollView(
-          slivers: [
-            const SliverToBoxAdapter(child: _SearchBar()),
-            if (_loading)
-              const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(child: CircularProgressIndicator()))
-            else if (_data == null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _ErrorState(
-                    errorCode: _errorCode,
-                    onRetry: () {
-                      setState(() => _loading = true);
-                      _load();
-                    }),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 24),
-                sliver: SliverList.list(children: _sections(_data!)),
-              ),
-          ],
+        // Exactly one screen tall: nothing to scroll, but pull-to-refresh works.
+        child: LayoutBuilder(
+          builder: (context, viewport) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: SizedBox(
+              height: viewport.maxHeight,
+              child: Column(children: [
+                const _SearchBar(),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _data == null
+                          ? _ErrorState(
+                              errorCode: _errorCode,
+                              onRetry: () {
+                                setState(() => _loading = true);
+                                _load();
+                              })
+                          : LayoutBuilder(
+                              builder: (context, box) =>
+                                  _sections(_data!, box.maxHeight)),
+                ),
+              ]),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  List<Widget> _sections(HomeData d) {
-    const gap = SizedBox(height: 12);
-    return [
-      _PromoCarousel(
-          banners: d.banners,
-          onCategory: (id) {
-            final c = [...d.featured, ...d.market]
-                .where((c) => c.id == id)
-                .firstOrNull;
-            if (c != null) _openCategory(c);
-          }),
-      gap,
-      if (d.featured.isNotEmpty) ...[
-        Row(children: [
-          for (final (i, c) in d.featured.take(2).indexed) ...[
-            if (i > 0) const SizedBox(width: 10),
-            Expanded(
-                child: _FeaturedCategoryCard(
-                    category: c,
-                    yellow: i.isOdd,
-                    onTap: () => _openCategory(c))),
-          ],
-        ]),
+  Widget _sections(HomeData d, double height) {
+    // Short phones drop the optional extras so the essentials keep their size.
+    final compact = height < 520;
+    final gap = SizedBox(height: compact ? 6 : 8);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      child: Column(children: [
+        Expanded(
+          flex: compact ? 9 : 16,
+          child: _PromoCarousel(
+              banners: d.banners,
+              onCategory: (id) {
+                final c = [...d.featured, ...d.market]
+                    .where((c) => c.id == id)
+                    .firstOrNull;
+                if (c != null) _openCategory(c);
+              }),
+        ),
         gap,
-      ],
-      _MarketShopping(
-          categories: d.market, tiers: d.deliveryCharges, onTap: _openCategory),
-      gap,
-      if (d.discounted.isNotEmpty) ...[
-        _DealsStrip(products: d.discounted),
-        gap
-      ],
-      const _TrustRow(),
-    ];
+        if (d.featured.isNotEmpty) ...[
+          SizedBox(
+            height: compact ? 62 : 74,
+            child: _FeaturedRow(categories: d.featured, onTap: _openCategory),
+          ),
+          gap,
+        ],
+        Expanded(
+          flex: compact ? 27 : 26,
+          child: _MarketShopping(
+              categories: d.market,
+              tiers: d.deliveryCharges,
+              onTap: _openCategory,
+              compact: compact),
+        ),
+        if (d.discounted.isNotEmpty) ...[
+          gap,
+          Expanded(
+              flex: compact ? 42 : 34,
+              child: _DealsStrip(products: d.discounted)),
+        ],
+        if (!compact) ...[gap, const _TrustRow()],
+      ]),
+    );
   }
 }
 
@@ -157,7 +198,7 @@ class _SearchBar extends StatelessWidget {
               MaterialPageRoute(
                   builder: (_) => const ProductListView(searchMode: true))),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
             child: Row(children: [
               const Icon(Icons.search, color: Colors.black87),
               const SizedBox(width: 10),
@@ -273,8 +314,7 @@ class _PromoCarouselState extends State<_PromoCarousel> {
   Widget build(BuildContext context) {
     return Column(children: [
       // Compact so more of the page is visible without scrolling.
-      AspectRatio(
-        aspectRatio: 3.3,
+      Expanded(
         child: PageView.builder(
           controller: _controller,
           itemCount: _count,
@@ -320,27 +360,37 @@ class _OrderAnythingCard extends StatelessWidget {
             colors: [Color(0xFFEAF7E4), Color(0xFFFFF6D8)]),
         border: Border.all(color: brandGreen.withValues(alpha: 0.25)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(children: [
         Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FittedBox(
-                  child: Text(context.tr('hero_title'),
-                      style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: brandPrimary)),
-                ),
-                Text(context.tr('hero_sub'),
-                    maxLines: 2,
-                    style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: brandPrimary)),
-              ]),
+          // Shrinks the text a little when the banner is short (small phones).
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    child: Text(context.tr('hero_title'),
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: brandPrimary)),
+                  ),
+                  if (MediaQuery.sizeOf(context).height >= 700)
+                    // Keep the subtitle wrapping at a normal width inside the FittedBox.
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 210),
+                      child: Text(context.tr('hero_sub'),
+                          maxLines: 2,
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: brandPrimary)),
+                    ),
+                ]),
+          ),
         ),
         const SizedBox(width: 8),
         ElevatedButton.icon(
@@ -414,6 +464,40 @@ class _BannerCard extends StatelessWidget {
 
 // ---------------------------------------------------------------- Categories
 
+/// Every active featured category. Two share the width as in the design; with
+/// more, the row scrolls sideways (the next card peeks in) so none is left out.
+class _FeaturedRow extends StatelessWidget {
+  final List<Category> categories;
+  final ValueChanged<Category> onTap;
+  const _FeaturedRow({required this.categories, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget card(int i) => _FeaturedCategoryCard(
+        category: categories[i],
+        yellow: i.isOdd,
+        onTap: () => onTap(categories[i]));
+
+    if (categories.length <= 2) {
+      return Row(children: [
+        for (var i = 0; i < categories.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(child: card(i)),
+        ],
+      ]);
+    }
+    return LayoutBuilder(
+      builder: (context, box) => ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) =>
+            SizedBox(width: (box.maxWidth - 10) / 2.2, child: card(i)),
+      ),
+    );
+  }
+}
+
 class _FeaturedCategoryCard extends StatelessWidget {
   final Category category;
   final bool yellow;
@@ -434,7 +518,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
-          height: 92,
+          height: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
@@ -453,31 +537,36 @@ class _FeaturedCategoryCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(category.displayName(lang),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: brandPrimary)),
-                    if ((other ?? '').isNotEmpty)
-                      Text(other!,
+              // Scales the three text lines down slightly on small phones.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(category.displayName(lang),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 12.5, color: brandPrimary)),
-                    if (category.displaySubtitle(lang) != null)
-                      Text(category.displaySubtitle(lang)!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: yellow ? brandAccent : brandGreen)),
-                  ]),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: brandPrimary)),
+                      if ((other ?? '').isNotEmpty)
+                        Text(other!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12.5, color: brandPrimary)),
+                      if (category.displaySubtitle(lang) != null)
+                        Text(category.displaySubtitle(lang)!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: yellow ? brandAccent : brandGreen)),
+                    ]),
+              ),
             ),
             Icon(Icons.chevron_right,
                 color: yellow ? brandAccent : brandGreen,
@@ -493,8 +582,12 @@ class _MarketShopping extends StatelessWidget {
   final List<Category> categories;
   final List<Map<String, dynamic>> tiers;
   final ValueChanged<Category> onTap;
+  final bool compact;
   const _MarketShopping(
-      {required this.categories, required this.tiers, required this.onTap});
+      {required this.categories,
+      required this.tiers,
+      required this.onTap,
+      this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -505,17 +598,22 @@ class _MarketShopping extends StatelessWidget {
             foregroundColor: Colors.white,
             backgroundColor: brandGreen,
             side: BorderSide.none,
-            visualDensity: VisualDensity.compact,
+            visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             shape: const StadiumBorder(),
           ),
           onPressed: onPressed,
           icon: Icon(icon, size: 16),
-          label: Text(label, style: const TextStyle(fontSize: 12)),
+          label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label,
+                  maxLines: 1, style: const TextStyle(fontSize: 12))),
         );
 
     return _Panel(
       color: const Color(0xFFF1FAF7),
       borderColor: const Color(0xFFB9E4D3),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
@@ -531,54 +629,93 @@ class _MarketShopping extends StatelessWidget {
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(context.tr('market_shopping'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
                                 color: brandPrimary)),
                       ),
                     ]),
-                    const SizedBox(height: 4),
-                    Text(context.tr('market_shopping_sub'),
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.black87)),
+                    if (!compact) ...[
+                      const SizedBox(height: 4),
+                      Text(context.tr('market_shopping_sub'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.black87)),
+                    ],
                   ]),
             ),
           ),
           const SizedBox(width: 6),
-          // "Delivery Charges" sits below "How it works", as specified.
-          // IntrinsicWidth gives both buttons the width of the wider one; without
-          // it, "stretch" inside a Row asks for infinite width and the page fails.
-          IntrinsicWidth(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  pill(
-                      Icons.info_outline,
-                      context.tr('how_it_works'),
-                      () => showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text(context.tr('how_it_works')),
-                              content: Text(context.tr('how_it_works_body')),
-                              actions: [
-                                TextButton(
-                                    onPressed: () => Navigator.pop(ctx),
-                                    child: Text(context.tr('ok')))
-                              ],
-                            ),
-                          )),
-                  const SizedBox(height: 4),
-                  pill(
-                      Icons.local_shipping_outlined,
-                      context.tr('delivery_charges'),
-                      () => showDeliveryCharges(context, tiers)),
-                ]),
-          ),
+          if (compact) ...[
+            IconButton.filled(
+              tooltip: context.tr('how_it_works'),
+              visualDensity: VisualDensity.compact,
+              style: IconButton.styleFrom(backgroundColor: brandGreen),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text(context.tr('how_it_works')),
+                  content: Text(context.tr('how_it_works_body')),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(context.tr('ok')))
+                  ],
+                ),
+              ),
+              icon: const Icon(Icons.info_outline, size: 18),
+            ),
+            IconButton.filled(
+              tooltip: context.tr('delivery_charges'),
+              visualDensity: VisualDensity.compact,
+              style: IconButton.styleFrom(backgroundColor: brandGreen),
+              onPressed: () => showDeliveryCharges(context, tiers),
+              icon: const Icon(Icons.local_shipping_outlined, size: 18),
+            ),
+          ] else
+            // "Delivery Charges" sits below "How it works", as specified.
+            // IntrinsicWidth gives both buttons the width of the wider one; without
+            // it, "stretch" inside a Row asks for infinite width and the page fails.
+            ConstrainedBox(
+              // Long (e.g. Urdu) labels must not squeeze the title.
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.4),
+              child: IntrinsicWidth(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      pill(
+                          Icons.info_outline,
+                          context.tr('how_it_works'),
+                          () => showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: Text(context.tr('how_it_works')),
+                                  content:
+                                      Text(context.tr('how_it_works_body')),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: Text(context.tr('ok')))
+                                  ],
+                                ),
+                              )),
+                      const SizedBox(height: 4),
+                      pill(
+                          Icons.local_shipping_outlined,
+                          context.tr('delivery_charges'),
+                          () => showDeliveryCharges(context, tiers)),
+                    ]),
+              ),
+            ),
         ]),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 96,
+        const SizedBox(height: 6),
+        // Tiles take whatever height is left in the panel.
+        Expanded(
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length + 1,
@@ -624,16 +761,20 @@ class _Tile extends StatelessWidget {
           onTap: onTap,
           child: SizedBox(
             width: 84,
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Column(children: [
-                Expanded(child: Center(child: child)),
-                Text(label,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w600)),
-              ]),
+            child: LayoutBuilder(
+              builder: (context, box) => Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(children: [
+                  Expanded(child: Center(child: child)),
+                  Text(label,
+                      // Short tiles (small phones) keep the label to one line.
+                      maxLines: box.maxHeight < 72 ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w600)),
+                ]),
+              ),
             ),
           ),
         ),
@@ -706,22 +847,25 @@ class _DealsStrip extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.local_offer, color: brandAccent, size: 20),
+          const Icon(Icons.local_offer, color: brandAccent, size: 18),
           const SizedBox(width: 6),
           Text(context.tr('deals_discounts'),
               style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: brandPrimary)),
         ]),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: 200,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 2),
-            itemBuilder: (ctx, i) => ProductCard(products[i], width: 124),
+        const SizedBox(height: 4),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, box) => ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: products.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 2),
+              // Cards keep a product-card shape whatever height they get.
+              itemBuilder: (ctx, i) => ProductCard(products[i],
+                  width: (box.maxHeight * 0.68).clamp(104.0, 140.0)),
+            ),
           ),
         ),
       ]),

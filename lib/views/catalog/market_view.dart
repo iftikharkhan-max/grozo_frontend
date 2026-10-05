@@ -37,7 +37,10 @@ class _MarketViewState extends State<MarketView> {
         return;
       }
       _errorCode = null;
-      _categories = (r[0].data as List).map((c) => Category.fromJson(c)).where((c) => c.group == 'market').toList();
+      _categories = (r[0].data as List)
+          .map((c) => Category.fromJson(c))
+          .where((c) => c.group == 'market')
+          .toList();
       final products = (r[1].data as List).map((p) => Product.fromJson(p));
       _byCategory = {};
       for (final p in products) {
@@ -69,48 +72,64 @@ class _MarketViewState extends State<MarketView> {
             ? const CircularProgressIndicator()
             : Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(friendlyError(context, errorCode: _errorCode)),
-                ElevatedButton(onPressed: _load, child: Text(context.tr('retry'))),
+                ElevatedButton(
+                    onPressed: _load, child: Text(context.tr('retry'))),
               ]),
       );
     }
     final lang = context.lang;
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(padding: const EdgeInsets.fromLTRB(12, 12, 12, 96), children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: brandGreenLight, borderRadius: BorderRadius.circular(10)),
-          child: Text(context.tr('market_shopping_sub')),
-        ),
-        for (final c in _categories!) ...[
-          const SizedBox(height: 14),
-          Row(children: [
-            Text(categoryEmoji(c.name), style: const TextStyle(fontSize: 22)),
-            const SizedBox(width: 6),
-            Expanded(child: Text(c.displayName(lang), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: brandPrimary))),
-            if ((_byCategory[c.id] ?? []).isNotEmpty)
-              TextButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductListView(category: c))),
-                child: Text(context.tr('view_all')),
-              ),
-          ]),
-          if ((_byCategory[c.id] ?? []).isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(context.tr('no_products_yet'), style: const TextStyle(color: Colors.black45)),
-            )
-          else
-            SizedBox(
-              height: 216,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _byCategory[c.id]!.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 4),
-                itemBuilder: (ctx, i) => ProductCard(_byCategory[c.id]![i], fallbackEmoji: categoryEmoji(c.name)),
-              ),
+      child: ListView(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: brandGreenLight,
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text(context.tr('market_shopping_sub')),
             ),
-        ],
-      ]),
+            for (final c in _categories!) ...[
+              const SizedBox(height: 14),
+              Row(children: [
+                Text(categoryEmoji(c.name),
+                    style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 6),
+                Expanded(
+                    child: Text(c.displayName(lang),
+                        style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: brandPrimary))),
+                if ((_byCategory[c.id] ?? []).isNotEmpty)
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => ProductListView(category: c))),
+                    child: Text(context.tr('view_all')),
+                  ),
+              ]),
+              if ((_byCategory[c.id] ?? []).isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(context.tr('no_products_yet'),
+                      style: const TextStyle(color: Colors.black45)),
+                )
+              else
+                SizedBox(
+                  height: 216,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _byCategory[c.id]!.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 4),
+                    itemBuilder: (ctx, i) => ProductCard(_byCategory[c.id]![i],
+                        fallbackEmoji: categoryEmoji(c.name)),
+                  ),
+                ),
+            ],
+          ]),
     );
   }
 }
@@ -129,27 +148,41 @@ Future<void> showAddCustomItem(BuildContext context) async {
             controller: name,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(labelText: context.tr('custom_item_name'), hintText: 'e.g. Tapal Danedar 190g'),
+            decoration: InputDecoration(
+                labelText: context.tr('custom_item_name'),
+                hintText: 'e.g. Tapal Danedar 190g'),
           ),
           const SizedBox(height: 12),
           Row(children: [
             Text(context.tr('quantity')),
             const Spacer(),
-            IconButton(onPressed: qty > 1 ? () => setD(() => qty--) : null, icon: const Icon(Icons.remove_circle_outline)),
-            Text('$qty', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            IconButton(onPressed: () => setD(() => qty++), icon: const Icon(Icons.add_circle_outline)),
+            IconButton(
+                onPressed: qty > 1 ? () => setD(() => qty--) : null,
+                icon: const Icon(Icons.remove_circle_outline)),
+            Text('$qty',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            IconButton(
+                onPressed: () => setD(() => qty++),
+                icon: const Icon(Icons.add_circle_outline)),
           ]),
-          Text(context.tr('price_at_delivery'), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(context.tr('price_at_delivery'),
+              style: const TextStyle(fontSize: 12, color: Colors.black54)),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, name.text.trim().isNotEmpty), child: Text(context.tr('add'))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(context.tr('cancel'))),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, name.text.trim().isNotEmpty),
+              child: Text(context.tr('add'))),
         ],
       ),
     ),
   );
   if (added == true && context.mounted) {
     context.read<AppState>().addCustomItem(name.text.trim(), qty);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('custom_item_added'))));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.tr('custom_item_added'))));
   }
 }

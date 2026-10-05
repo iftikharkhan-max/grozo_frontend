@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../l10n/strings.dart';
 import '../../services/api.dart';
 import '../../utils/brand.dart';
+import '../shell/main_shell.dart';
 
 /// Saved delivery addresses. With [selectMode], tapping an address returns it.
 class AddressesView extends StatefulWidget {
@@ -53,15 +54,23 @@ class _AddressesViewState extends State<AddressesView> {
       builder: (ctx) => AlertDialog(
         content: Text(context.tr('delete_address_q')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.tr('delete'), style: const TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(context.tr('cancel'))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(context.tr('delete'),
+                  style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
     if (ok != true) return;
     final res = await Api.delete('/me/addresses/${a['id']}');
     if (!mounted) return;
-    if (!res.ok) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(context, errorCode: res.errorCode))));
+    if (!res.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(friendlyError(context, errorCode: res.errorCode))));
+    }
     _load();
   }
 
@@ -105,39 +114,74 @@ class _AddressesViewState extends State<AddressesView> {
           Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: widget.selectMode && a['id'] == widget.selectedId ? brandGreen : Colors.transparent, width: 2),
+              side: BorderSide(
+                  color: widget.selectMode && a['id'] == widget.selectedId
+                      ? brandGreen
+                      : Colors.transparent,
+                  width: 2),
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: widget.selectMode ? () => Navigator.pop(context, a) : () => _edit(a),
+              onTap: widget.selectMode
+                  ? () => Navigator.pop(context, a)
+                  : () => _edit(a),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 4, 4),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Icon(a['label']?.toString().toLowerCase() == 'office' ? Icons.work_outline : Icons.home_outlined, color: brandPrimary),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(a['label'] ?? context.tr('delivery_address'), style: const TextStyle(fontWeight: FontWeight.bold))),
-                    if (a['is_default'] == 1 || a['is_default'] == true)
-                      Chip(label: Text(context.tr('default_address')), visualDensity: VisualDensity.compact),
-                  ]),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 32, top: 4, end: 8),
-                    child: Text([a['address_line'], a['city']].where((x) => (x ?? '').toString().isNotEmpty).join(', ')),
-                  ),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 32, top: 4),
-                    child: Text(
-                      a['latitude'] != null ? context.tr('location_saved') : context.tr('location_missing'),
-                      style: TextStyle(fontSize: 11.5, color: a['latitude'] != null ? brandGreen : Colors.orange.shade800),
-                    ),
-                  ),
-                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                    if (!(a['is_default'] == 1 || a['is_default'] == true))
-                      TextButton(onPressed: () => _makeDefault(a), child: Text(context.tr('make_default'))),
-                    TextButton(onPressed: () => _edit(a), child: Text(context.tr('edit'))),
-                    TextButton(onPressed: () => _delete(a), child: Text(context.tr('delete'), style: const TextStyle(color: Colors.red))),
-                  ]),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(
+                            a['label']?.toString().toLowerCase() == 'office'
+                                ? Icons.work_outline
+                                : Icons.home_outlined,
+                            color: brandPrimary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(
+                                a['label'] ?? context.tr('delivery_address'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold))),
+                        if (a['is_default'] == 1 || a['is_default'] == true)
+                          Chip(
+                              label: Text(context.tr('default_address')),
+                              visualDensity: VisualDensity.compact),
+                      ]),
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                            start: 32, top: 4, end: 8),
+                        child: Text([a['address_line'], a['city']]
+                            .where((x) => (x ?? '').toString().isNotEmpty)
+                            .join(', ')),
+                      ),
+                      Padding(
+                        padding:
+                            const EdgeInsetsDirectional.only(start: 32, top: 4),
+                        child: Text(
+                          a['latitude'] != null
+                              ? context.tr('location_saved')
+                              : context.tr('location_missing'),
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: a['latitude'] != null
+                                  ? brandGreen
+                                  : Colors.orange.shade800),
+                        ),
+                      ),
+                      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                        if (!(a['is_default'] == 1 || a['is_default'] == true))
+                          TextButton(
+                              onPressed: () => _makeDefault(a),
+                              child: Text(context.tr('make_default'))),
+                        TextButton(
+                            onPressed: () => _edit(a),
+                            child: Text(context.tr('edit'))),
+                        TextButton(
+                            onPressed: () => _delete(a),
+                            child: Text(context.tr('delete'),
+                                style: const TextStyle(color: Colors.red))),
+                      ]),
+                    ]),
               ),
             ),
           ),
@@ -176,8 +220,11 @@ class _AddressEditViewState extends State<AddressEditView> {
         return;
       }
       var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         messenger.showSnackBar(SnackBar(content: Text(msg('location_denied'))));
         return;
       }
@@ -207,48 +254,72 @@ class _AddressEditViewState extends State<AddressEditView> {
       'longitude': _lng,
       'is_default': _isDefault,
     };
-    final res = widget.address == null ? await Api.post('/me/addresses', body) : await Api.put('/me/addresses/${a['id']}', body);
+    final res = widget.address == null
+        ? await Api.post('/me/addresses', body)
+        : await Api.put('/me/addresses/${a['id']}', body);
     if (!mounted) return;
     setState(() => _saving = false);
     if (res.ok) {
       Navigator.pop(context, Map<String, dynamic>.from(res.data));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(context, errorCode: res.errorCode, serverMessage: res.message))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(friendlyError(context,
+              errorCode: res.errorCode, serverMessage: res.message))));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final hasLocation = _lat != null && _lng != null;
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.address == null ? context.tr('add_address') : context.tr('edit'))),
+    return HidesOrderNowButton(
+        child: Scaffold(
+      appBar: AppBar(
+          title: Text(widget.address == null
+              ? context.tr('add_address')
+              : context.tr('edit'))),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          TextFormField(controller: _label, decoration: InputDecoration(labelText: context.tr('address_label'))),
+          TextFormField(
+              controller: _label,
+              decoration:
+                  InputDecoration(labelText: context.tr('address_label'))),
           const SizedBox(height: 12),
           TextFormField(
             controller: _line,
             maxLines: 3,
             minLines: 2,
-            decoration: InputDecoration(labelText: '${context.tr('address_line')} *', alignLabelWithHint: true),
-            validator: (v) => (v ?? '').trim().isEmpty ? context.tr('fill_all') : null,
+            decoration: InputDecoration(
+                labelText: '${context.tr('address_line')} *',
+                alignLabelWithHint: true),
+            validator: (v) =>
+                (v ?? '').trim().isEmpty ? context.tr('fill_all') : null,
           ),
           const SizedBox(height: 12),
-          TextFormField(controller: _city, decoration: InputDecoration(labelText: context.tr('city'))),
+          TextFormField(
+              controller: _city,
+              decoration: InputDecoration(labelText: context.tr('city'))),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _locating ? null : _useLocation,
             icon: _locating
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : Icon(hasLocation ? Icons.check_circle : Icons.my_location, color: hasLocation ? brandGreen : null),
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : Icon(hasLocation ? Icons.check_circle : Icons.my_location,
+                    color: hasLocation ? brandGreen : null),
             label: Text(context.tr('use_my_location')),
           ),
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
-              hasLocation ? context.tr('location_saved') : context.tr('location_missing'),
-              style: TextStyle(fontSize: 12, color: hasLocation ? brandGreen : Colors.orange.shade800),
+              hasLocation
+                  ? context.tr('location_saved')
+                  : context.tr('location_missing'),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: hasLocation ? brandGreen : Colors.orange.shade800),
             ),
           ),
           SwitchListTile(
@@ -266,11 +337,13 @@ class _AddressEditViewState extends State<AddressEditView> {
             height: 48,
             child: ElevatedButton(
               onPressed: _saving ? null : _save,
-              child: _saving ? const CircularProgressIndicator() : Text(context.tr('save')),
+              child: _saving
+                  ? const CircularProgressIndicator()
+                  : Text(context.tr('save')),
             ),
           ),
         ),
       ),
-    );
+    ));
   }
 }

@@ -53,15 +53,27 @@ class _NotificationsViewState extends State<NotificationsView> {
     final orderId = n['order_id'];
     final linkId = n['link_id'];
     if (orderId != null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailView(orderId: orderId as int)));
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => OrderDetailView(orderId: orderId as int)));
     } else if (n['link_type'] == 'product' && linkId != null) {
       final res = await Api.get('/products/$linkId');
-      if (res.ok && mounted) openProduct(context, Product.fromJson(Map<String, dynamic>.from(res.data)));
+      if (res.ok && mounted) {
+        openProduct(
+            context, Product.fromJson(Map<String, dynamic>.from(res.data)));
+      }
     } else if (n['link_type'] == 'category' && linkId != null) {
       final res = await Api.get('/categories');
       if (!res.ok || !mounted) return;
-      final c = (res.data as List).map((c) => Category.fromJson(c)).where((c) => c.id == linkId).firstOrNull;
-      if (c != null) Navigator.push(context, MaterialPageRoute(builder: (_) => ProductListView(category: c)));
+      final c = (res.data as List)
+          .map((c) => Category.fromJson(c))
+          .where((c) => c.id == linkId)
+          .firstOrNull;
+      if (c != null) {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => ProductListView(category: c)));
+      }
     }
   }
 
@@ -85,11 +97,17 @@ class _NotificationsViewState extends State<NotificationsView> {
     }
     if (_items == null) return const Center(child: CircularProgressIndicator());
     if (_items!.isEmpty) {
-      return Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(context.tr('no_notifications'), textAlign: TextAlign.center)));
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(context.tr('no_notifications'),
+                  textAlign: TextAlign.center)));
     }
     final ur = context.lang == 'ur';
     String? pick(Map n, String key) {
-      final v = ur && (n['${key}_ur'] ?? '').toString().isNotEmpty ? n['${key}_ur'] : n[key];
+      final v = ur && (n['${key}_ur'] ?? '').toString().isNotEmpty
+          ? n['${key}_ur']
+          : n[key];
       return (v ?? '').toString().isEmpty ? null : v.toString();
     }
 
@@ -105,13 +123,19 @@ class _NotificationsViewState extends State<NotificationsView> {
           return ListTile(
             tileColor: unread ? brandGreenLight : null,
             leading: CircleAvatar(
-              backgroundColor: (isPromo ? brandAccent : brandGreen).withValues(alpha: 0.15),
-              child: Icon(isPromo ? Icons.local_offer : Icons.receipt_long, color: isPromo ? brandAccent : brandGreen),
+              backgroundColor:
+                  (isPromo ? brandAccent : brandGreen).withValues(alpha: 0.15),
+              child: Icon(isPromo ? Icons.local_offer : Icons.receipt_long,
+                  color: isPromo ? brandAccent : brandGreen),
             ),
-            title: Text(pick(n, 'title') ?? '', style: TextStyle(fontWeight: unread ? FontWeight.bold : FontWeight.w500)),
-            subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            title: Text(pick(n, 'title') ?? '',
+                style: TextStyle(
+                    fontWeight: unread ? FontWeight.bold : FontWeight.w500)),
+            subtitle:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (pick(n, 'body') != null) Text(pick(n, 'body')!),
-              Text(_ago(DateTime.tryParse('${n['created_at']}')?.toLocal()), style: const TextStyle(fontSize: 11, color: Colors.black45)),
+              Text(_ago(DateTime.tryParse('${n['created_at']}')?.toLocal()),
+                  style: const TextStyle(fontSize: 11, color: Colors.black45)),
             ]),
             onTap: () => _open(n),
           );

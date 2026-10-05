@@ -24,19 +24,26 @@ class _BranchViewState extends State<BranchView> {
       body: FutureBuilder<ApiResult>(
         future: _future,
         builder: (context, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final res = snap.data!;
           if (!res.ok) {
             return Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(friendlyError(context, errorCode: res.errorCode)),
                 const SizedBox(height: 12),
-                ElevatedButton(onPressed: () => setState(() => _future = Api.get('/branches')), child: Text(context.tr('retry'))),
+                ElevatedButton(
+                    onPressed: () =>
+                        setState(() => _future = Api.get('/branches')),
+                    child: Text(context.tr('retry'))),
               ]),
             );
           }
           final branches = List<Map<String, dynamic>>.from(res.data ?? []);
-          if (branches.isEmpty) return Center(child: Text(context.tr('branch_not_set')));
+          if (branches.isEmpty) {
+            return Center(child: Text(context.tr('branch_not_set')));
+          }
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [for (final b in branches) _BranchCard(branch: b)],
@@ -54,7 +61,10 @@ class _BranchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ur = context.lang == 'ur';
-    final name = (ur && (branch['name_ur'] ?? '').toString().isNotEmpty ? branch['name_ur'] : branch['name']).toString();
+    final name = (ur && (branch['name_ur'] ?? '').toString().isNotEmpty
+            ? branch['name_ur']
+            : branch['name'])
+        .toString();
     final lat = double.tryParse('${branch['latitude']}');
     final lng = double.tryParse('${branch['longitude']}');
     final address = (branch['address'] ?? '').toString();
@@ -62,7 +72,8 @@ class _BranchCard extends StatelessWidget {
     final hours = (branch['opening_hours'] ?? '').toString();
 
     final destination = lat != null && lng != null ? '$lat,$lng' : address;
-    final mapsUri = Uri.https('www.google.com', '/maps/dir/', {'api': '1', 'destination': destination});
+    final mapsUri = Uri.https('www.google.com', '/maps/dir/',
+        {'api': '1', 'destination': destination});
 
     return Card(
       child: Padding(
@@ -71,7 +82,9 @@ class _BranchCard extends StatelessWidget {
           Row(children: [
             const Icon(Icons.storefront, color: brandGreen, size: 28),
             const SizedBox(width: 8),
-            Expanded(child: Text(name, style: Theme.of(context).textTheme.titleLarge)),
+            Expanded(
+                child:
+                    Text(name, style: Theme.of(context).textTheme.titleLarge)),
           ]),
           if (address.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -94,7 +107,8 @@ class _BranchCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => launchUrl(mapsUri, mode: LaunchMode.externalApplication),
+                onPressed: () =>
+                    launchUrl(mapsUri, mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.directions),
                 label: Text(context.tr('open_in_maps')),
               ),
