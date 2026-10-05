@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../state/app_state.dart';
 import 'package:grozo/services/api.dart';
 import '../../utils/validators.dart';
 import '../../utils/constants.dart';
@@ -193,6 +195,10 @@ class _AddUserViewState extends State<AddUserView> {
         TextEditingController(text: staff['address']?.toString() ?? '');
     String updateRole = staff['role'] ?? 'Rider';
     bool isCustomer = updateRole == 'Customer';
+    // Admin accounts are not edited here: the role list only offers staff and
+    // customer roles, and an admin must not lock themself out.
+    final isAdmin = updateRole == 'Admin';
+    final isMe = staff['id'] == context.read<AppState>().user?.id;
 
     showDialog(
         context: context,
@@ -203,6 +209,16 @@ class _AddUserViewState extends State<AddUserView> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (isAdmin)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                              isMe
+                                  ? 'This is your own Admin account. It cannot be changed or deactivated here.'
+                                  : 'Admin accounts cannot be edited here. Only deactivation is permitted.',
+                              style: const TextStyle(
+                                  color: Colors.orange, fontSize: 12)),
+                        ),
                       if (isCustomer)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -215,11 +231,16 @@ class _AddUserViewState extends State<AddUserView> {
                         isExpanded:
                             true, // long names use the full width and never overflow
                         initialValue: updateRole,
-                        items: ['Rider', 'Manager', 'Customer']
+                        items: [
+                          'Rider',
+                          'Manager',
+                          'Customer',
+                          if (isAdmin) 'Admin'
+                        ]
                             .map((r) =>
                                 DropdownMenuItem(value: r, child: Text(r)))
                             .toList(),
-                        onChanged: isCustomer
+                        onChanged: isCustomer || isAdmin
                             ? null
                             : (val) => setDialogState(() => updateRole = val!),
                         decoration:
@@ -229,55 +250,61 @@ class _AddUserViewState extends State<AddUserView> {
                         controller: updateMobile,
                         decoration:
                             const InputDecoration(labelText: 'Mobile Number'),
-                        enabled: !isCustomer,
+                        enabled: !isCustomer && !isAdmin,
                       ),
                       TextField(
                         controller: updateAddress,
                         decoration: const InputDecoration(labelText: 'Address'),
-                        enabled: !isCustomer,
+                        enabled: !isCustomer && !isAdmin,
                       ),
                     ],
                   ),
                 ),
                 actions: [
-                  TextButton(
-                    onPressed: () async {
-                      bool confirm = await showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Confirm Deactivation'),
-                              content: const Text(
-                                  'Are you sure you want to deactivate this account? The user will no longer be able to login.'),
-                              actions: [
-                                TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Cancel')),
-                                TextButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text('Deactivate',
-                                        style: TextStyle(color: Colors.red))),
-                              ],
-                            ),
-                          ) ??
-                          false;
+                  if (isMe)
+                    TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close')),
+                  if (!isMe)
+                    TextButton(
+                      onPressed: () async {
+                        bool confirm = await showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Confirm Deactivation'),
+                                content: const Text(
+                                    'Are you sure you want to deactivate this account? The user will no longer be able to login.'),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('Cancel')),
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Deactivate',
+                                          style: TextStyle(color: Colors.red))),
+                                ],
+                              ),
+                            ) ??
+                            false;
 
-                      if (confirm) {
-                        final success =
-                            await AuthService.deleteUser(staff['id']);
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(success
-                                  ? 'User deactivated'
-                                  : 'Deactivation failed')));
-                          _loadStaff();
+                        if (confirm) {
+                          final success =
+                              await AuthService.deleteUser(staff['id']);
+                          if (mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(success
+                                    ? 'User deactivated'
+                                    : 'Deactivation failed')));
+                            _loadStaff();
+                          }
                         }
-                      }
-                    },
-                    child: const Text('DEACTIVATE',
-                        style: TextStyle(color: Colors.red)),
-                  ),
-                  if (!isCustomer)
+                      },
+                      child: const Text('DEACTIVATE',
+                          style: TextStyle(color: Colors.red)),
+                    ),
+                  if (!isCustomer && !isAdmin)
                     TextButton(
                       onPressed: () async {
                         final success =
@@ -303,6 +330,121 @@ class _AddUserViewState extends State<AddUserView> {
   }
 
   void _logout() => confirmLogout(context);
+
+  final _search = TextEditingController();
+  String _roleFilter = 'All';
+  final _manageScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    _manageScroll.dispose();
+    super.dispose();
+  }
+
+  List<dynamic> get _filteredUsers {
+    final text = _search.text.trim().toLowerCase();
+    return _staffList.where((u) {
+      if (_roleFilter != 'All' && u['role'] != _roleFilter) return false;
+      if (text.isEmpty) return true;
+      return [u['name'], u['email'], u['mobile']]
+          .any((v) => '${v ?? ''}'.toLowerCase().contains(text));
+    }).toList();
+  }
+
+  Widget _manageTab() {
+    if (_staffList.isEmpty && _inactiveStaff.isEmpty) {
+      return const Center(child: Text("No users found or loading..."));
+    }
+    final users = _filteredUsers;
+    final counts = <String, int>{};
+    for (final u in _staffList) {
+      counts['${u['role']}'] = (counts['${u['role']}'] ?? 0) + 1;
+    }
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+        child: TextField(
+          controller: _search,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: 'Search name, email or mobile',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _search.text.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => setState(_search.clear)),
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+        child: Wrap(spacing: 6, runSpacing: 2, children: [
+          for (final r in ['All', 'Manager', 'Rider', 'Customer', 'Admin'])
+            ChoiceChip(
+              visualDensity: VisualDensity.compact,
+              label: Text(r == 'All'
+                  ? 'All (${_staffList.length})'
+                  : '${r}s (${counts[r] ?? 0})'),
+              selected: _roleFilter == r,
+              onSelected: (_) => setState(() => _roleFilter = r),
+            ),
+        ]),
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: () async => _loadStaff(),
+          // Always-visible scrollbar: shows the list is longer than the screen.
+          child: Scrollbar(
+            controller: _manageScroll,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _manageScroll,
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: users.length + 1,
+              itemBuilder: (_, idx) {
+                if (idx == users.length) {
+                  return Column(children: [
+                    if (users.isEmpty)
+                      const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('No users match.')),
+                    if (_inactiveStaff.isNotEmpty) _inactiveSection(),
+                    const SizedBox(height: 24),
+                  ]);
+                }
+                final staff = users[idx];
+                final role = '${staff['role'] ?? 'Unknown'}';
+                return Card(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                        backgroundColor: switch (role) {
+                          'Customer' => Colors.green,
+                          'Admin' => Colors.deepOrange,
+                          _ => Colors.indigo,
+                        },
+                        foregroundColor: Colors.white,
+                        child: Text(role.isEmpty ? '?' : role[0])),
+                    title: Text('${staff['name']} ($role)',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(
+                        'Email: ${staff['email']}\nAddr: ${staff['address'] ?? 'N/A'}'),
+                    isThreeLine: true,
+                    onTap: () => _showUpdateDialog(staff),
+                    trailing: const Icon(Icons.edit, color: Colors.indigo),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -394,41 +536,7 @@ class _AddUserViewState extends State<AddUserView> {
             ),
 
             // --- TAB 2: MANAGE USERS ---
-            _staffList.isEmpty && _inactiveStaff.isEmpty
-                ? const Center(child: Text("No users found or loading..."))
-                : ListView.builder(
-                    itemCount: _staffList.length + 1,
-                    itemBuilder: (_, idx) {
-                      if (idx == _staffList.length) {
-                        return _inactiveStaff.isEmpty
-                            ? const SizedBox(height: 24)
-                            : _inactiveSection();
-                      }
-                      final staff = _staffList[idx];
-                      final role = staff['role'] ?? 'Unknown';
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                              backgroundColor: role == 'Customer'
-                                  ? Colors.green
-                                  : Colors.indigo,
-                              foregroundColor: Colors.white,
-                              child: Text(role[0])),
-                          title: Text('${staff['name']} ($role)',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                              'Email: ${staff['email']}\nAddr: ${staff['address'] ?? 'N/A'}'),
-                          isThreeLine: true,
-                          onTap: () => _showUpdateDialog(staff),
-                          trailing:
-                              const Icon(Icons.edit, color: Colors.indigo),
-                        ),
-                      );
-                    },
-                  ),
+            _manageTab(),
 
             // --- TAB 3: STORE MANAGEMENT ---
             const StoreAdminTab(),

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../l10n/strings.dart';
 import '../../services/api.dart';
+import 'package:provider/provider.dart';
+import '../../state/app_state.dart';
 import '../../utils/brand.dart';
+import 'location_picker_view.dart';
 import '../shell/main_shell.dart';
 
 /// Saved delivery addresses. With [selectMode], tapping an address returns it.
@@ -210,6 +213,57 @@ class _AddressEditViewState extends State<AddressEditView> {
   bool _locating = false;
   bool _saving = false;
 
+  /// Furthest delivery distance (from the delivery-charge tiers), for warnings.
+  double? _maxKm;
+
+  @override
+  void initState() {
+    super.initState();
+    loadMaxDeliveryKm().then((km) => _maxKm = km);
+  }
+
+  /// The delivery point can be anywhere: someone in another city can order
+  /// for a family member near one of our branches.
+  Future<void> _pickOnMap() async {
+    final picked = await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute<PickedLocation>(
+            builder: (_) =>
+                LocationPickerView(latitude: _lat, longitude: _lng)));
+    if (picked == null || !mounted) return;
+    setState(() {
+      _lat = picked.latitude;
+      _lng = picked.longitude;
+      if (_line.text.trim().isEmpty && picked.address != null) {
+        _line.text = picked.address!;
+      }
+    });
+  }
+
+  /// After "use my current location": if the phone is far from every branch
+  /// the customer is probably ordering for somewhere else, so offer the map.
+  Future<void> _checkCurrentLocationIsDeliveryPoint() async {
+    if (_lat == null || _lng == null || _maxKm == null) return;
+    final near = nearestBranch(context.read<AppState>().branches, _lat!, _lng!);
+    if (near == null || near.km <= _maxKm!) return;
+    final choose = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('delivery_location')),
+        content: Text(
+            context.trf('gps_far_warning', {'km': near.km.toStringAsFixed(0)})),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(context.tr('keep_location'))),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(context.tr('pick_on_map'))),
+        ],
+      ),
+    );
+    if (choose == true && mounted) _pickOnMap();
+  }
+
   Future<void> _useLocation() async {
     final messenger = ScaffoldMessenger.of(context);
     String msg(String key) => context.tr(key);
@@ -236,6 +290,7 @@ class _AddressEditViewState extends State<AddressEditView> {
         _lat = pos.latitude;
         _lng = pos.longitude;
       });
+      _checkCurrentLocationIsDeliveryPoint();
     } catch (_) {
       messenger.showSnackBar(SnackBar(content: Text(msg('err_generic'))));
     } finally {
@@ -300,6 +355,17 @@ class _AddressEditViewState extends State<AddressEditView> {
               controller: _city,
               decoration: InputDecoration(labelText: context.tr('city'))),
           const SizedBox(height: 16),
+          Text(context.tr('delivery_location'),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          ElevatedButton.icon(
+            onPressed: _pickOnMap,
+            icon: Icon(
+                hasLocation ? Icons.edit_location_alt : Icons.map_outlined),
+            label:
+                Text(context.tr(hasLocation ? 'change_on_map' : 'pick_on_map')),
+          ),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _locating ? null : _useLocation,
             icon: _locating
@@ -307,10 +373,21 @@ class _AddressEditViewState extends State<AddressEditView> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : Icon(hasLocation ? Icons.check_circle : Icons.my_location,
-                    color: hasLocation ? brandGreen : null),
+                : const Icon(Icons.my_location),
             label: Text(context.tr('use_my_location')),
           ),
+          if (hasLocation)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                onPressed: () => setState(() {
+                  _lat = null;
+                  _lng = null;
+                }),
+                icon: const Icon(Icons.location_off_outlined, size: 18),
+                label: Text(context.tr('remove_location')),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
