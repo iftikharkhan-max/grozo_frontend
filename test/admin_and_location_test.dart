@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:grozo/views/account/addresses_view.dart';
 import 'package:grozo/views/account/location_picker_view.dart';
 import 'package:grozo/views/admin/add_user_view.dart';
+import 'package:grozo/views/admin/store/categories_admin_view.dart';
 import 'package:grozo/views/home/home_view.dart';
 import 'package:grozo/views/shell/main_shell.dart';
 import 'phase1_requirements_test.dart' as h;
@@ -151,6 +152,67 @@ void main() {
       final near = nearestBranch(h.twoBranches, 34.19, 73.23)!;
       expect(near.branch['name'], 'Mandian Branch');
       expect(near.km, lessThan(1));
+    });
+  });
+
+  group('Deleting a category', () {
+    const category = {'id': 7, 'name': 'Bakery', 'display_group': 'market', 'sort_order': 3, 'is_active': 1};
+
+    Future<void> openEdit(WidgetTester tester) async {
+      // Opened from a list page, as in the app, so it can close after deleting.
+      await h.startApp(tester,
+          role: 'Admin',
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => TextButton(
+                onPressed: () => Navigator.push(ctx,
+                    MaterialPageRoute(builder: (_) => const CategoryEditView(category: category))),
+                child: const Text('open'),
+              ),
+            ),
+          ));
+      await tester.tap(find.text('open'));
+      await h.settle(tester);
+      await tester.tap(find.byTooltip('Delete category'));
+      await h.settle(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await h.settle(tester);
+    }
+
+    testWidgets('an empty category is deleted', (tester) async {
+      h.overrides['DELETE /admin/categories/7'] = (200, {'message': 'Category "Bakery" deleted.'});
+      await openEdit(tester);
+      expect(h.requests, contains('DELETE /admin/categories/7'));
+      expect(find.text('Category "Bakery" deleted.'), findsOneWidget);
+      expect(find.byType(CategoryEditView), findsNothing, reason: 'back on the list');
+      expect(tester.takeException(), isNull);
+      await h.stopApp(tester);
+    });
+
+    testWidgets('a category with products offers Hide instead or Delete anyway', (tester) async {
+      h.overrides['DELETE /admin/categories/7'] =
+          (409, {'error': '"Bakery" still has 4 product(s).', 'code': 'category_has_products', 'product_count': 4});
+      await openEdit(tester);
+      expect(find.text('"Bakery" has 4 product(s)'), findsOneWidget);
+
+      h.overrides['DELETE /admin/categories/7'] = (200, {'message': 'Category "Bakery" deleted.'});
+      await tester.tap(find.text('Delete anyway'));
+      await h.settle(tester);
+      expect(h.urls.last.queryParameters['force'], '1');
+      expect(find.text('Category "Bakery" deleted.'), findsOneWidget);
+      await h.stopApp(tester);
+    });
+
+    testWidgets('Hide instead keeps the category but hides it', (tester) async {
+      h.overrides['DELETE /admin/categories/7'] =
+          (409, {'error': 'has products', 'code': 'category_has_products', 'product_count': 4});
+      h.overrides['PUT /admin/categories/7'] = (200, {'message': 'Category updated.'});
+      await openEdit(tester);
+      await tester.tap(find.text('Hide instead'));
+      await h.settle(tester);
+      expect(h.requests.last, 'PUT /admin/categories/7');
+      expect(h.requests.where((r) => r.startsWith('DELETE')).length, 1, reason: 'not deleted');
+      await h.stopApp(tester);
     });
   });
 }

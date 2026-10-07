@@ -47,27 +47,35 @@ class Api {
       _send(() => client.get(_uri(path, query), headers: jsonHeaders));
 
   static Future<ApiResult> post(String path, [Object? body]) =>
-      _send(() => client.post(_uri(path), headers: jsonHeaders, body: jsonEncode(body ?? {})));
+      _send(() => client.post(_uri(path),
+          headers: jsonHeaders, body: jsonEncode(body ?? {})));
 
   static Future<ApiResult> put(String path, [Object? body]) =>
-      _send(() => client.put(_uri(path), headers: jsonHeaders, body: jsonEncode(body ?? {})));
+      _send(() => client.put(_uri(path),
+          headers: jsonHeaders, body: jsonEncode(body ?? {})));
 
-  static Future<ApiResult> delete(String path) =>
-      _send(() => client.delete(_uri(path), headers: jsonHeaders));
+  static Future<ApiResult> delete(String path, {Map<String, String>? query}) =>
+      _send(() => client.delete(_uri(path, query), headers: jsonHeaders));
 
   /// Sends form fields plus an optional image (multipart), e.g. product with photo.
   /// Null field values are sent as empty strings, which the server stores as "not set".
-  static Future<ApiResult> sendForm(String method, String path, Map<String, dynamic> fields, {File? image}) {
+  static Future<ApiResult> sendForm(
+      String method, String path, Map<String, dynamic> fields,
+      {File? image}) {
     return _send(() async {
       final req = http.MultipartRequest(method, _uri(path))
         ..headers.addAll(authHeaders)
-        ..fields.addAll(fields.map((k, v) => MapEntry(k, v == null ? '' : v.toString())));
-      if (image != null) req.files.add(await http.MultipartFile.fromPath('image', image.path));
+        ..fields.addAll(
+            fields.map((k, v) => MapEntry(k, v == null ? '' : v.toString())));
+      if (image != null) {
+        req.files.add(await http.MultipartFile.fromPath('image', image.path));
+      }
       return http.Response.fromStream(await client.send(req));
     });
   }
 
-  static Future<ApiResult> _send(Future<http.Response> Function() request) async {
+  static Future<ApiResult> _send(
+      Future<http.Response> Function() request) async {
     try {
       final res = await request().timeout(_timeout);
       dynamic body;
@@ -76,7 +84,9 @@ class Api {
       } catch (_) {
         body = null;
       }
-      if (res.statusCode >= 200 && res.statusCode < 300) return ApiResult(res.statusCode, body);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return ApiResult(res.statusCode, body);
+      }
 
       final map = body is Map ? body : const {};
       final code = map['error']?.toString();

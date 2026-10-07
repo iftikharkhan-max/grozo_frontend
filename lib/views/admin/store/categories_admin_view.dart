@@ -136,11 +136,86 @@ class _CategoryEditViewState extends State<CategoryEditView> {
     }
   }
 
+  Future<void> _delete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete "${c['name']}"?'),
+        content: const Text(
+            'The category is removed from the app. Past orders are not affected.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    var res = await Api.delete('/admin/categories/${c['id']}');
+    if (!mounted) return;
+
+    final data = res.data is Map ? res.data as Map : const {};
+    if (res.status == 409 && data['code'] == 'category_has_products') {
+      setState(() => _busy = false);
+      final n = data['product_count'];
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('"${c['name']}" has $n product(s)'),
+          content: Text(
+              'Hide it instead: the category and its products disappear from '
+              'the customer app but nothing is lost, and you can show it again '
+              'later.\n\nDelete anyway: the $n product(s) stay in the shop '
+              'without a category (customers still find them by search) until '
+              'you move them to another category in Products.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, 'hide'),
+                child: const Text('Hide instead')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, 'delete'),
+                child: const Text('Delete anyway',
+                    style: TextStyle(color: Colors.red))),
+          ],
+        ),
+      );
+      if (choice == null || !mounted) return;
+      setState(() => _busy = true);
+      res = choice == 'hide'
+          ? await Api.sendForm(
+              'PUT', '/admin/categories/${c['id']}', {'is_active': 0})
+          : await Api.delete('/admin/categories/${c['id']}',
+              query: {'force': '1'});
+      if (!mounted) return;
+    }
+    setState(() => _busy = false);
+    if (res.ok) {
+      adminToast(context, '${res.data?['message'] ?? 'Category updated.'}');
+      Navigator.pop(context, true);
+    } else {
+      adminError(context, res);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: adminAppBar(
-          widget.category == null ? 'Add category' : 'Edit category'),
+          widget.category == null ? 'Add category' : 'Edit category',
+          actions: [
+            if (widget.category != null)
+              IconButton(
+                  tooltip: 'Delete category',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _busy ? null : _delete),
+          ]),
       bottomNavigationBar: AdminSaveButton(busy: _busy, onPressed: _save),
       body: Form(
         key: _form,
