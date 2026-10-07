@@ -27,6 +27,17 @@ gradle.taskGraph.whenReady {
     }
 }
 
+// App version comes straight from pubspec.yaml ("version: 2.1.0+6" ->
+// versionName 2.1.0, versionCode 6). Flutter normally passes it through
+// android/local.properties, but that file is only refreshed by `flutter build`;
+// building from Android Studio (Build > Generate Signed Bundle) used to pick up
+// the previous release's number, which Google Play rejects.
+val pubspecVersion: String = rootProject.file("../pubspec.yaml").readLines()
+    .first { it.trimStart().startsWith("version:") }
+    .substringAfter("version:").trim()
+val appVersionName = pubspecVersion.substringBefore("+")
+val appVersionCode = pubspecVersion.substringAfter("+", "1").toInt()
+
 android {
     namespace = "com.iftikhar.grozo"
     compileSdk = flutter.compileSdkVersion
@@ -41,8 +52,8 @@ android {
         applicationId = "com.iftikhar.grozo"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     signingConfigs {
