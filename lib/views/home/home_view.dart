@@ -160,19 +160,26 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           ),
           gap,
         ],
-        Expanded(
-          flex: compact ? 27 : 26,
+        // Spec 5: Market Shopping and Discounts are kept compact (fixed
+        // heights on normal phones); the space they free goes to the offers
+        // banner at the top instead of making the page taller.
+        SizedBox(
+          height: (height * 0.21).clamp(96.0, 120.0),
+          // The one-line header leaves the tiles enough room at this height.
           child: _MarketShopping(
               categories: d.market,
               tiers: d.deliveryCharges,
               onTap: _openCategory,
-              compact: compact),
+              compact: true),
         ),
         if (d.discounted.isNotEmpty) ...[
           gap,
-          Expanded(
-              flex: compact ? 42 : 34,
-              child: _DealsStrip(products: d.discounted)),
+          if (compact)
+            Expanded(flex: 42, child: _DealsStrip(products: d.discounted))
+          else
+            SizedBox(
+                height: (height * 0.30).clamp(150.0, 170.0),
+                child: _DealsStrip(products: d.discounted)),
         ],
         if (!compact) ...[gap, const _TrustRow()],
       ]),

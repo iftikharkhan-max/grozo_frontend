@@ -1,9 +1,36 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
+import '../../services/staff_alerts.dart';
 import '../../controllers/order_service.dart';
 import '../common/more_menu.dart';
 import '../staff/order_info.dart';
+import 'edit_order_view.dart';
 import 'phone_order_view.dart';
+
+/// Newest order first (spec 12).
+List<dynamic> newestFirst(List<dynamic> orders) => [...orders]..sort((a, b) {
+    final ta = DateTime.tryParse('${a['created_at']}');
+    final tb = DateTime.tryParse('${b['created_at']}');
+    if (ta != null && tb != null && ta != tb) return tb.compareTo(ta);
+    return ((b['id'] as num?) ?? 0).compareTo((a['id'] as num?) ?? 0);
+  });
+
+/// Orange "Change requested" label when the customer asked to change the order.
+Widget changeRequestedChip(Map o) => ((o['pending_changes'] as num?) ?? 0) > 0
+    ? Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+            color: Colors.orange.shade100,
+            borderRadius: BorderRadius.circular(6)),
+        child: Text('✏️ Change requested by customer',
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange.shade900)),
+      )
+    : const SizedBox.shrink();
 
 class ManagerDashboard extends StatefulWidget {
   final UserModel user;
@@ -19,9 +46,87 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   Map<String, dynamic> _report = {'count': 0, 'total': 0};
   Map<dynamic, dynamic> _selectedRiders = {};
 
+  late final StaffAlerts _alerts =
+      StaffAlerts(userId: widget.user.id, onNewAlerts: _refreshAll);
+  Timer? _autoRefresh;
+
   @override
   void initState() {
     super.initState();
+    _refreshAll();
+    // New orders ring and refresh the lists; lists also refresh on their own.
+    _alerts.start();
+    _autoRefresh =
+        Timer.periodic(const Duration(seconds: 30), (_) => _refreshAll());
+  }
+
+  @override
+  void dispose() {
+    _alerts.stop();
+    _autoRefresh?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _editOrder(Map o) async {
+    final saved = await Navigator.push<bool>(context,
+        MaterialPageRoute(builder: (_) => EditOrderView(orderId: o['id'])));
+    if (saved == true) _refreshAll();
+  }
+
+  /// Spec 14: give a dispatched order to another rider.
+  Future<void> _changeRider(Map o) async {
+    final others =
+        _riders.where((r) => r['id'] != o['delivery_agent_id']).toList();
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No other riders available.')));
+      return;
+    }
+    dynamic picked;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text('Change rider for ${o['tracking_number']}'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Current rider: ${o['rider_name'] ?? 'none'}'),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<dynamic>(
+              isExpanded: true,
+              initialValue: picked,
+              decoration: const InputDecoration(labelText: 'New rider'),
+              items: [
+                for (final r in others)
+                  DropdownMenuItem(
+                      value: r['id'],
+                      child: Text("${r['name']} (${r['mobile'] ?? ''})",
+                          maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: (v) => setDialog(() => picked = v),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+                'The new rider is alerted; the previous rider is told the order is no longer theirs.',
+                style: TextStyle(fontSize: 12, color: Colors.black54)),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                onPressed:
+                    picked == null ? null : () => Navigator.pop(ctx, true),
+                child: const Text('Reassign')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || picked == null || !mounted) return;
+    final done = await OrderService.dispatchToRider(o['id'], picked);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:
+            Text(done ? 'Rider changed.' : 'Could not change the rider.')));
     _refreshAll();
   }
 
@@ -39,8 +144,8 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
 
     if (mounted) {
       setState(() {
-        _pool = poolData;
-        _myWorkspace = workspaceData;
+        _pool = newestFirst(poolData);
+        _myWorkspace = newestFirst(workspaceData);
         _riders = ridersData;
         _report = reportData;
       });
@@ -99,10 +204,15 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                                 'Ref: ${o['tracking_number']}${o['order_source'] == 'phone' ? '  •  📞 PHONE' : ''}${o['order_type'] == 'market_request' ? '  •  MARKET' : ''}',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                                '${o['customer_name'] ?? ''} • ${o['destination'] ?? 'N/A'}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
+                            subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      '${o['customer_name'] ?? ''} • ${o['destination'] ?? 'N/A'}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                  changeRequestedChip(o),
+                                ]),
                             childrenPadding:
                                 const EdgeInsets.fromLTRB(16, 0, 16, 12),
                             trailing: ElevatedButton(
@@ -157,13 +267,43 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                                             fontWeight: FontWeight.bold)),
                                   ],
                                 ),
+                                changeRequestedChip(o),
                                 const Divider(),
                                 StaffOrderInfo(Map<String, dynamic>.from(o)),
                                 if (o['rider_name'] != null &&
                                     o['rider_name'] != 'Unassigned')
                                   Padding(
                                       padding: const EdgeInsets.only(top: 4),
-                                      child: Text('Rider: ${o['rider_name']}')),
+                                      child: Row(children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Rider: ${o['rider_name']}',
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w600))),
+                                        if (['Dispatched', 'In the way']
+                                            .contains(o['status']))
+                                          TextButton.icon(
+                                            onPressed: () => _changeRider(o),
+                                            icon: const Icon(Icons.swap_horiz,
+                                                size: 18),
+                                            label: const Text('Change rider'),
+                                          ),
+                                      ])),
+                                if (o['status'] == 'Order Placed')
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () => _editOrder(o),
+                                      icon: const Icon(Icons.edit_note),
+                                      label: Text(
+                                          ((o['pending_changes'] as num?) ??
+                                                      0) >
+                                                  0
+                                              ? 'Review change request'
+                                              : 'Edit order'),
+                                    ),
+                                  ),
                                 const SizedBox(height: 10),
                                 if ([
                                   'order placed',

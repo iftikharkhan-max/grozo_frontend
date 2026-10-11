@@ -8,6 +8,7 @@ import '../../services/api.dart';
 import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../common/product_widgets.dart';
+import 'change_request_view.dart';
 import 'my_orders_view.dart';
 import 'reorder.dart';
 import '../shell/main_shell.dart';
@@ -83,6 +84,12 @@ class _OrderDetailViewState extends State<OrderDetailView> {
     _load();
   }
 
+  Future<void> _requestChange(Order o) async {
+    final sent = await Navigator.push<bool>(context,
+        MaterialPageRoute(builder: (_) => ChangeRequestView(order: o)));
+    if (sent == true) _load();
+  }
+
   Future<void> _markReceived() async {
     setState(() => _busy = true);
     final res = await Api.put(
@@ -133,6 +140,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
               onRefresh: _load,
               child: ListView(padding: const EdgeInsets.all(12), children: [
                 _timeline(o),
+                _changeCard(o),
                 if (o.step == OrderStep.riderAssigned ||
                     o.step == OrderStep.outForDelivery)
                   _riderCard(o),
@@ -160,10 +168,18 @@ class _OrderDetailViewState extends State<OrderDetailView> {
           icon: const Icon(Icons.replay),
           label: Text(context.tr('reorder')),
         ),
-      if (o.canCancel)
+      if (o.canRequestChange && !o.hasPendingChange)
+        OutlinedButton.icon(
+          onPressed: _busy ? null : () => _requestChange(o),
+          icon: const Icon(Icons.edit_note),
+          label: Text(context.tr('request_change')),
+        ),
+      // Shown but disabled once cancelling is no longer allowed; the reason
+      // is explained in the card above.
+      if (o.isActive && o.step != OrderStep.delivered)
         OutlinedButton(
           style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-          onPressed: _busy ? null : _cancel,
+          onPressed: _busy || !o.canCancel ? null : _cancel,
           child: Text(context.tr('cancel_order')),
         ),
     ];
@@ -179,6 +195,52 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         ]),
       ),
     );
+  }
+
+  /// Change request status, or why the order can no longer be cancelled/changed.
+  Widget _changeCard(Order o) {
+    final r = o.changeRequest;
+    Widget note(IconData icon, Color color, String title, String? body) =>
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: color.withValues(alpha: 0.4))),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: color)),
+                    if ((body ?? '').isNotEmpty) Text(body!),
+                  ]),
+            ),
+          ]),
+        );
+
+    if (o.hasPendingChange) {
+      return note(Icons.hourglass_top, Colors.orange.shade800,
+          context.tr('change_pending'), r?['message']?.toString());
+    }
+    final widgets = <Widget>[];
+    if (r != null && r['status'] == 'rejected') {
+      widgets.add(note(Icons.info_outline, Colors.red.shade700,
+          context.tr('change_rejected'), r['response']?.toString()));
+    } else if (r != null && r['status'] == 'accepted' && o.isActive) {
+      widgets.add(note(Icons.check_circle_outline, brandGreen,
+          context.tr('change_accepted'), null));
+    }
+    if (o.isActive && !o.canCancel && (o.cancelBlockReason ?? '').isNotEmpty) {
+      widgets.add(note(Icons.lock_outline, Colors.blueGrey,
+          context.tr('cannot_change_now'), o.cancelBlockReason));
+    }
+    return Column(children: widgets);
   }
 
   Widget _timeline(Order o) {

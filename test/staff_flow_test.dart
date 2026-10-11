@@ -12,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:grozo/models/user_model.dart';
 import 'package:grozo/services/api.dart';
+import 'package:grozo/services/staff_alerts.dart';
 import 'package:grozo/state/app_state.dart';
 import 'package:grozo/views/admin/add_user_view.dart';
 import 'package:grozo/views/manager/manager_dashboard.dart';
@@ -125,6 +126,7 @@ Future<void> pumpStaff(WidgetTester tester, Widget screen) async {
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({});
   FlutterSecureStorage.setMockInitialValues({});
+  StaffAlerts.showPhoneNotifications = false;
   Api.client = fakeServer();
   Api.token = 'staff-token';
   requests.clear();
@@ -158,7 +160,10 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.textContaining('Fresh Milk 1L'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Claim').first);
+    // The pool is newest first, so claim TRK12 by name rather than position.
+    await tester.tap(find.descendant(
+        of: find.ancestor(of: find.textContaining('TRK12'), matching: find.byType(Card)),
+        matching: find.widgetWithText(ElevatedButton, 'Claim')));
     await settle(tester);
     expect(requests.any((r) => r.startsWith('PUT /orders/12/claim')), isTrue);
 
@@ -168,9 +173,14 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.textContaining('TRK40'), findsOneWidget);
     expect(find.textContaining('Tapal tea'), findsOneWidget, reason: 'extra market items shown to the manager');
+    // The order card is taller now (Edit order), so scroll to the controls.
+    await tester.ensureVisible(find.byType(DropdownButtonFormField<dynamic>).first);
+    await settle(tester);
     await tester.tap(find.byType(DropdownButtonFormField<dynamic>).first);
     await settle(tester);
     await tester.tap(find.textContaining('Rider A').last);
+    await settle(tester);
+    await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'DISPATCH').first);
     await settle(tester);
     await tester.tap(find.widgetWithText(ElevatedButton, 'DISPATCH').first);
     await settle(tester);

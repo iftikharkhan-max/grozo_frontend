@@ -7,6 +7,7 @@ import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../../utils/opening_hours.dart';
 import '../account/addresses_view.dart';
+import '../account/location_picker_view.dart';
 import '../common/product_widgets.dart';
 import 'order_confirmation_view.dart';
 import '../shell/main_shell.dart';
@@ -168,6 +169,34 @@ class _CheckoutViewState extends State<CheckoutView> {
         _quoteError = friendlyError(context, errorCode: res.errorCode);
       }
     });
+  }
+
+  /// Spec 17: the delivery point is shown before confirming and can be
+  /// moved on the map; the saved address is updated and charges recalculated.
+  Future<void> _adjustPin() async {
+    final a = _address;
+    if (a == null) return;
+    final picked = await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute<PickedLocation>(
+            builder: (_) => LocationPickerView(
+                latitude: double.tryParse('${a['latitude']}'),
+                longitude: double.tryParse('${a['longitude']}'))));
+    if (picked == null || !mounted) return;
+    final res = await Api.put('/me/addresses/${a['id']}', {
+      'label': a['label'],
+      'address_line': a['address_line'],
+      'city': a['city'],
+      'latitude': picked.latitude,
+      'longitude': picked.longitude,
+    });
+    if (!mounted) return;
+    if (res.ok && res.data is Map) {
+      setState(() => _address = Map<String, dynamic>.from(res.data));
+      _requote();
+    } else {
+      _toast(friendlyError(context,
+          errorCode: res.errorCode, serverMessage: res.message));
+    }
   }
 
   Future<void> _chooseAddress() async {
@@ -533,6 +562,7 @@ class _CheckoutViewState extends State<CheckoutView> {
               Text([a['address_line'], a['city']]
                   .where((x) => (x ?? '').toString().isNotEmpty)
                   .join(', ')),
+              _pinRow(a),
               if (_outsideArea)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
@@ -546,6 +576,24 @@ class _CheckoutViewState extends State<CheckoutView> {
           : TextButton(
               onPressed: _chooseAddress, child: Text(context.tr('change'))),
     );
+  }
+
+  Widget _pinRow(Map<String, dynamic> a) {
+    final pinned = a['latitude'] != null && a['longitude'] != null;
+    return Row(children: [
+      Icon(pinned ? Icons.location_on : Icons.location_off_outlined,
+          size: 18, color: pinned ? brandGreen : Colors.orange.shade800),
+      const SizedBox(width: 4),
+      Expanded(
+        child: Text(context.tr(pinned ? 'pin_set' : 'pin_missing'),
+            style: TextStyle(
+                fontSize: 12.5,
+                color: pinned ? brandGreen : Colors.orange.shade900)),
+      ),
+      TextButton(
+          onPressed: _adjustPin,
+          child: Text(context.tr(pinned ? 'adjust_pin' : 'pick_on_map'))),
+    ]);
   }
 
   Widget _detailsCard() => _section(

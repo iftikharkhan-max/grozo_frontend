@@ -4,6 +4,9 @@
     <!-- Customers: "use my current location" for a delivery address. Riders: live delivery tracking. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Managers and riders: new-order alerts with sound (Android 13+ asks the user). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="Grozo"
         android:name="${applicationName}"

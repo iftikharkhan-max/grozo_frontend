@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
+import '../../services/staff_alerts.dart';
 import '../../controllers/order_service.dart';
 import '../../controllers/location_service.dart';
 import '../common/more_menu.dart';
@@ -30,16 +32,26 @@ class _RiderDashboardState extends State<RiderDashboard> {
 
   @override
   void dispose() {
+    _alerts.stop();
+    _autoRefresh?.cancel();
     for (final c in _amounts.values) {
       c.dispose();
     }
     super.dispose();
   }
 
+  late final StaffAlerts _alerts =
+      StaffAlerts(userId: widget.user.id, onNewAlerts: _refresh);
+  Timer? _autoRefresh;
+
   @override
   void initState() {
     super.initState();
     _refresh();
+    // Spec 9: a new or reassigned delivery rings and appears in the list.
+    _alerts.start();
+    _autoRefresh =
+        Timer.periodic(const Duration(seconds: 30), (_) => _loadManifest());
   }
 
   void _refresh() {
