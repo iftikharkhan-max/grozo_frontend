@@ -1,5 +1,8 @@
-double _toDouble(dynamic v) => v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
-int? _toIntOrNull(dynamic v) => v == null ? null : (v is int ? v : int.tryParse(v.toString()));
+double _toDouble(dynamic v) => v == null
+    ? 0.0
+    : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
+int? _toIntOrNull(dynamic v) =>
+    v == null ? null : (v is int ? v : int.tryParse(v.toString()));
 
 class Product {
   final int id;
@@ -40,7 +43,8 @@ class Product {
     return limits.isEmpty ? null : limits.reduce((a, b) => a < b ? a : b);
   }
 
-  String displayName(String lang) => lang == 'ur' && (nameUr ?? '').isNotEmpty ? nameUr! : name;
+  String displayName(String lang) =>
+      lang == 'ur' && (nameUr ?? '').isNotEmpty ? nameUr! : name;
 
   factory Product.fromJson(Map<String, dynamic> j) {
     final price = _toDouble(j['price']);
@@ -53,7 +57,8 @@ class Product {
       imageUrl: j['image_url']?.toString(),
       categoryId: _toIntOrNull(j['category_id']),
       price: price,
-      finalPrice: j['final_price'] == null ? price : _toDouble(j['final_price']),
+      finalPrice:
+          j['final_price'] == null ? price : _toDouble(j['final_price']),
       discountPercent: _toIntOrNull(j['discount_percent']) ?? 0,
       stockQty: _toIntOrNull(j['stock_qty']),
       maxPerOrder: _toIntOrNull(j['max_per_order']),
@@ -88,6 +93,12 @@ class Category {
   final String group; // 'featured' | 'market'
   final List<Product> products;
 
+  /// Main category this one belongs to; null for a main category.
+  final int? parentId;
+
+  /// Visible sub-categories of a main category.
+  final List<Category> subcategories;
+
   const Category({
     required this.id,
     required this.name,
@@ -97,10 +108,14 @@ class Category {
     this.imageUrl,
     this.group = 'market',
     this.products = const [],
+    this.parentId,
+    this.subcategories = const [],
   });
 
-  String displayName(String lang) => lang == 'ur' && (nameUr ?? '').isNotEmpty ? nameUr! : name;
-  String? displaySubtitle(String lang) => lang == 'ur' && (subtitleUr ?? '').isNotEmpty ? subtitleUr : subtitle;
+  String displayName(String lang) =>
+      lang == 'ur' && (nameUr ?? '').isNotEmpty ? nameUr! : name;
+  String? displaySubtitle(String lang) =>
+      lang == 'ur' && (subtitleUr ?? '').isNotEmpty ? subtitleUr : subtitle;
 
   factory Category.fromJson(Map<String, dynamic> j) => Category(
         id: _toIntOrNull(j['id']) ?? 0,
@@ -110,6 +125,12 @@ class Category {
         subtitleUr: j['subtitle_ur']?.toString(),
         imageUrl: j['image_url']?.toString(),
         group: (j['display_group'] ?? 'market').toString(),
-        products: (j['products'] as List? ?? []).map((p) => Product.fromJson(p)).toList(),
+        products: (j['products'] as List? ?? [])
+            .map((p) => Product.fromJson(p))
+            .toList(),
+        parentId: _toIntOrNull(j['parent_id']),
+        subcategories: (j['subcategories'] as List? ?? [])
+            .map((c) => Category.fromJson(Map<String, dynamic>.from(c)))
+            .toList(),
       );
 }

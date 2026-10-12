@@ -10,6 +10,7 @@ const Map<String, Map<String, String>> _strings = {
   'ok': {'en': 'OK', 'ur': 'ٹھیک ہے'},
   'save': {'en': 'Save', 'ur': 'محفوظ کریں'},
   'close': {'en': 'Close', 'ur': 'بند کریں'},
+  'all': {'en': 'All', 'ur': 'سب'},
   'view_all': {'en': 'View all', 'ur': 'سب دیکھیں'},
   'coming_soon': {'en': 'This section is coming in the next update.', 'ur': 'یہ حصہ اگلی اپ ڈیٹ میں آ رہا ہے۔'},
   'rs': {'en': 'Rs.', 'ur': 'روپے'},

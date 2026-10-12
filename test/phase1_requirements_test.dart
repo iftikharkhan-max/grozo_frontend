@@ -28,6 +28,9 @@ String fixture(String name) => File('test/fixtures/$name.json').readAsStringSync
 /// "METHOD /path" of every request, and the decoded JSON body of each.
 final requests = <String>[];
 
+/// Raw text of form (multipart) uploads, by "METHOD /path".
+final forms = <String, String>{};
+
 /// Full URLs of every request (to check query parameters).
 final urls = <Uri>[];
 final bodies = <String, List<dynamic>>{};
@@ -47,6 +50,7 @@ http.Client fakeServer() => MockClient((req) async {
       final key = '${req.method} $path';
       requests.add(key);
       urls.add(req.url);
+      if (req.headers['content-type']?.contains('multipart') == true) forms[key] = req.body;
       if (req.body.isNotEmpty && req.headers['content-type']?.contains('json') == true) {
         (bodies[key] ??= []).add(jsonDecode(req.body));
       }

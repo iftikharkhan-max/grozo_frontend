@@ -193,7 +193,7 @@ void main() {
       h.overrides['DELETE /admin/categories/7'] =
           (409, {'error': '"Bakery" still has 4 product(s).', 'code': 'category_has_products', 'product_count': 4});
       await openEdit(tester);
-      expect(find.text('"Bakery" has 4 product(s)'), findsOneWidget);
+      expect(find.text('"Bakery" still has 4 product(s).'), findsOneWidget);
 
       h.overrides['DELETE /admin/categories/7'] = (200, {'message': 'Category "Bakery" deleted.'});
       await tester.tap(find.text('Delete anyway'));

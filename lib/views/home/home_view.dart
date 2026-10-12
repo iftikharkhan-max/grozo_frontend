@@ -145,8 +145,11 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           flex: compact ? 9 : 16,
           child: _PromoCarousel(
               banners: d.banners,
+              tiers: d.deliveryCharges,
               onCategory: (id) {
-                final c = [...d.featured, ...d.market]
+                // A banner may link to a main category or a sub-category.
+                final main = [...d.featured, ...d.market];
+                final c = [...main, for (final m in main) ...m.subcategories]
                     .where((c) => c.id == id)
                     .firstOrNull;
                 if (c != null) _openCategory(c);
@@ -160,28 +163,23 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           ),
           gap,
         ],
-        // Spec 5: Market Shopping and Discounts are kept compact (fixed
-        // heights on normal phones); the space they free goes to the offers
-        // banner at the top instead of making the page taller.
+        // Market Shopping is 1.5x its earlier height; Deals & Discounts gave
+        // up that space and shows one compact row. The banner takes the rest.
         SizedBox(
-          height: (height * 0.21).clamp(96.0, 120.0),
-          // The one-line header leaves the tiles enough room at this height.
+          height: (height * 0.315).clamp(132.0, 180.0),
           child: _MarketShopping(
-              categories: d.market,
-              tiers: d.deliveryCharges,
-              onTap: _openCategory,
-              compact: true),
+              categories: d.market, onTap: _openCategory, compact: compact),
         ),
         if (d.discounted.isNotEmpty) ...[
           gap,
-          if (compact)
-            Expanded(flex: 42, child: _DealsStrip(products: d.discounted))
-          else
-            SizedBox(
-                height: (height * 0.30).clamp(150.0, 170.0),
-                child: _DealsStrip(products: d.discounted)),
+          SizedBox(
+              height: (height * 0.2).clamp(100.0, 110.0),
+              child: _DealsStrip(products: d.discounted)),
         ],
         if (!compact) ...[gap, const _TrustRow()],
+        // Short phones end with the deals row: keep it clear of the round
+        // Order Now button, which rises above the footer.
+        if (compact) const SizedBox(height: 24),
       ]),
     );
   }
@@ -225,8 +223,10 @@ class _SearchBar extends StatelessWidget {
 
 class _PromoCarousel extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
+  final List<Map<String, dynamic>> tiers;
   final ValueChanged<int> onCategory;
-  const _PromoCarousel({required this.banners, required this.onCategory});
+  const _PromoCarousel(
+      {required this.banners, required this.tiers, required this.onCategory});
 
   @override
   State<_PromoCarousel> createState() => _PromoCarouselState();
@@ -237,8 +237,9 @@ class _PromoCarouselState extends State<_PromoCarousel> {
   Timer? _timer;
   int _page = 0;
 
-  int get _count =>
-      widget.banners.length + 1; // +1 for the built-in "Order Anything" card
+  // Slides: "Order Anything", the admin's banners, then "How it works" and
+  // "Delivery Charges" (these two used to be buttons in Market Shopping).
+  int get _count => widget.banners.length + 3;
 
   @override
   void initState() {
@@ -326,11 +327,26 @@ class _PromoCarouselState extends State<_PromoCarousel> {
           controller: _controller,
           itemCount: _count,
           onPageChanged: (i) => setState(() => _page = i),
-          itemBuilder: (ctx, i) => i == 0
-              ? const _OrderAnythingCard()
-              : _BannerCard(
+          itemBuilder: (ctx, i) {
+            if (i == 0) return const _OrderAnythingCard();
+            if (i <= widget.banners.length) {
+              return _BannerCard(
                   banner: widget.banners[i - 1],
-                  onTap: () => _openBanner(widget.banners[i - 1])),
+                  onTap: () => _openBanner(widget.banners[i - 1]));
+            }
+            return i == widget.banners.length + 1
+                ? _InfoSlide(
+                    icon: Icons.info_outline,
+                    title: context.tr('how_it_works'),
+                    body: context.tr('market_shopping_sub'),
+                    onTap: () => showHowItWorks(context))
+                : _InfoSlide(
+                    icon: Icons.local_shipping_outlined,
+                    title: context.tr('delivery_charges'),
+                    body: deliveryChargesSummary(widget.tiers),
+                    yellow: true,
+                    onTap: () => showDeliveryCharges(context, widget.tiers));
+          },
         ),
       ),
       if (_count > 1)
@@ -352,6 +368,98 @@ class _PromoCarouselState extends State<_PromoCarousel> {
           ),
         ),
     ]);
+  }
+}
+
+void showHowItWorks(BuildContext context) => showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('how_it_works')),
+        content: Text(context.tr('how_it_works_body')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.tr('ok')))
+        ],
+      ),
+    );
+
+/// "0–2 km Rs. 50  •  2–5 km Rs. 100 …" for the Delivery Charges slide.
+String deliveryChargesSummary(List<Map<String, dynamic>> tiers) {
+  String n(dynamic v) {
+    final d = double.tryParse('$v') ?? 0;
+    return d == d.roundToDouble() ? d.toStringAsFixed(0) : '$d';
+  }
+
+  return tiers
+      .map(
+          (t) => '${n(t['min_km'])}–${n(t['max_km'])} km Rs. ${n(t['charge'])}')
+      .join('  •  ');
+}
+
+/// A carousel slide for "How it works" / "Delivery Charges"; tap for details.
+class _InfoSlide extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final bool yellow;
+  final VoidCallback onTap;
+  const _InfoSlide(
+      {required this.icon,
+      required this.title,
+      required this.body,
+      required this.onTap,
+      this.yellow = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = yellow ? brandAccent : brandGreen;
+    return Material(
+      color: yellow ? brandYellowLight : brandGreenLight,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: accent.withValues(alpha: 0.4)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(children: [
+            CircleAvatar(
+                radius: 20,
+                backgroundColor: accent,
+                child: Icon(icon, color: Colors.white, size: 22)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: brandPrimary)),
+                    if (body.isNotEmpty)
+                      Flexible(
+                        child: Text(body,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.black87)),
+                      ),
+                  ]),
+            ),
+            Icon(Icons.chevron_right,
+                color: accent, textDirection: Directionality.of(context)),
+          ]),
+        ),
+      ),
+    );
   }
 }
 
@@ -587,139 +695,49 @@ class _FeaturedCategoryCard extends StatelessWidget {
 
 class _MarketShopping extends StatelessWidget {
   final List<Category> categories;
-  final List<Map<String, dynamic>> tiers;
   final ValueChanged<Category> onTap;
   final bool compact;
   const _MarketShopping(
-      {required this.categories,
-      required this.tiers,
-      required this.onTap,
-      this.compact = false});
+      {required this.categories, required this.onTap, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
     final lang = context.lang;
-    Widget pill(IconData icon, String label, VoidCallback onPressed) =>
-        OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            backgroundColor: brandGreen,
-            side: BorderSide.none,
-            visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            shape: const StadiumBorder(),
-          ),
-          onPressed: onPressed,
-          icon: Icon(icon, size: 16),
-          label: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label,
-                  maxLines: 1, style: const TextStyle(fontSize: 12))),
-        );
-
     return _Panel(
       color: const Color(0xFFF1FAF7),
       borderColor: const Color(0xFFB9E4D3),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const MarketView())),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const Icon(Icons.storefront,
-                          color: brandPrimary, size: 26),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(context.tr('market_shopping'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                color: brandPrimary)),
-                      ),
-                    ]),
-                    if (!compact) ...[
-                      const SizedBox(height: 4),
-                      Text(context.tr('market_shopping_sub'),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black87)),
-                    ],
-                  ]),
-            ),
-          ),
-          const SizedBox(width: 6),
-          if (compact) ...[
-            IconButton.filled(
-              tooltip: context.tr('how_it_works'),
-              visualDensity: VisualDensity.compact,
-              style: IconButton.styleFrom(backgroundColor: brandGreen),
-              onPressed: () => showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text(context.tr('how_it_works')),
-                  content: Text(context.tr('how_it_works_body')),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(context.tr('ok')))
-                  ],
-                ),
-              ),
-              icon: const Icon(Icons.info_outline, size: 18),
-            ),
-            IconButton.filled(
-              tooltip: context.tr('delivery_charges'),
-              visualDensity: VisualDensity.compact,
-              style: IconButton.styleFrom(backgroundColor: brandGreen),
-              onPressed: () => showDeliveryCharges(context, tiers),
-              icon: const Icon(Icons.local_shipping_outlined, size: 18),
-            ),
-          ] else
-            // "Delivery Charges" sits below "How it works", as specified.
-            // IntrinsicWidth gives both buttons the width of the wider one; without
-            // it, "stretch" inside a Row asks for infinite width and the page fails.
-            ConstrainedBox(
-              // Long (e.g. Urdu) labels must not squeeze the title.
-              constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.4),
-              child: IntrinsicWidth(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      pill(
-                          Icons.info_outline,
-                          context.tr('how_it_works'),
-                          () => showDialog(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: Text(context.tr('how_it_works')),
-                                  content:
-                                      Text(context.tr('how_it_works_body')),
-                                  actions: [
-                                    TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: Text(context.tr('ok')))
-                                  ],
-                                ),
-                              )),
-                      const SizedBox(height: 4),
-                      pill(
-                          Icons.local_shipping_outlined,
-                          context.tr('delivery_charges'),
-                          () => showDeliveryCharges(context, tiers)),
-                    ]),
+        InkWell(
+          onTap: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const MarketView())),
+          child: Row(children: [
+            const Icon(Icons.storefront, color: brandPrimary, size: 24),
+            const SizedBox(width: 6),
+            // Long (e.g. Urdu) titles shrink a little rather than overflow.
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(context.tr('market_shopping'),
+                    maxLines: 1,
+                    style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: brandPrimary)),
               ),
             ),
-        ]),
+            const SizedBox(width: 8),
+            if (!compact)
+              Expanded(
+                child: Text(context.tr('market_shopping_sub'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(fontSize: 11, color: Colors.black87)),
+              ),
+          ]),
+        ),
         const SizedBox(height: 6),
         // Tiles take whatever height is left in the panel.
         Expanded(
@@ -851,31 +869,85 @@ class _DealsStrip extends StatelessWidget {
     return _Panel(
       color: const Color(0xFFFFF1E6),
       borderColor: brandAccent.withValues(alpha: 0.35),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.local_offer, color: brandAccent, size: 18),
+          const Icon(Icons.local_offer, color: brandAccent, size: 16),
           const SizedBox(width: 6),
           Text(context.tr('deals_discounts'),
               style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: brandPrimary)),
         ]),
         const SizedBox(height: 4),
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, box) => ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: products.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 2),
-              // Cards keep a product-card shape whatever height they get.
-              itemBuilder: (ctx, i) => ProductCard(products[i],
-                  width: (box.maxHeight * 0.68).clamp(104.0, 140.0)),
-            ),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: products.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemBuilder: (ctx, i) => _DealCard(products[i]),
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// Short, wide deal card for the compact strip: photo, name, price, add.
+class _DealCard extends StatelessWidget {
+  final Product product;
+  const _DealCard(this.product);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 256,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => openProduct(context, product),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Row(children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: NetImage(product.imageUrl,
+                        fallbackEmoji: categoryEmoji(product.name))),
+              ),
+              const SizedBox(width: 8),
+              // Name on its own line; price and Add share the line below.
+              Expanded(
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product.displayName(context.lang),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        Expanded(
+                          child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: PriceText(product, fontSize: 13)),
+                        ),
+                        const SizedBox(width: 4),
+                        SizedBox(width: 76, child: AddToCartControl(product)),
+                      ]),
+                    ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }

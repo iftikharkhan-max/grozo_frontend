@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/strings.dart';
 import '../../models/product.dart';
 import '../../services/api.dart';
+import '../../utils/brand.dart';
 import '../common/product_widgets.dart';
 import '../cart/cart_view.dart';
 
@@ -24,6 +25,10 @@ class _ProductListViewState extends State<ProductListView> {
   String? _errorCode;
   int _requestId = 0;
 
+  /// Sub-category chosen from the tiles at the top; null shows everything
+  /// in the main category.
+  Category? _sub;
+
   @override
   void initState() {
     super.initState();
@@ -39,7 +44,8 @@ class _ProductListViewState extends State<ProductListView> {
 
   Future<void> _load() async {
     final query = <String, String>{
-      if (widget.category != null) 'category': '${widget.category!.id}',
+      if (widget.category != null)
+        'category': '${(_sub ?? widget.category!).id}',
       if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
     };
     if (widget.searchMode && query['q'] == null) {
@@ -104,7 +110,69 @@ class _ProductListViewState extends State<ProductListView> {
           ),
         ],
       ),
-      body: _body(emoji),
+      body: (widget.category?.subcategories ?? const []).isEmpty
+          ? _body(emoji)
+          : Column(children: [
+              _subcategoryBar(widget.category!.subcategories),
+              Expanded(child: _body(emoji)),
+            ]),
+    );
+  }
+
+  /// "All" plus one tile per sub-category, each with its picture.
+  Widget _subcategoryBar(List<Category> subs) {
+    final lang = context.lang;
+    Widget tile(Category? c) {
+      final selected = c?.id == _sub?.id;
+      return Padding(
+        padding: const EdgeInsetsDirectional.only(end: 8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            setState(() {
+              _sub = c;
+              _products = [];
+            });
+            _load();
+          },
+          child: Container(
+            width: 78,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: selected ? brandGreenLight : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: selected ? brandGreen : Colors.black12,
+                  width: selected ? 2 : 1),
+            ),
+            child: Column(children: [
+              Expanded(
+                child: c == null
+                    ? const Icon(Icons.apps, color: brandPrimary, size: 28)
+                    : NetImage(c.imageUrl,
+                        fit: BoxFit.contain,
+                        fallbackEmoji: categoryEmoji(c.name)),
+              ),
+              Text(c == null ? context.tr('all') : c.displayName(lang),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight:
+                          selected ? FontWeight.bold : FontWeight.w500)),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 86,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(8, 6, 0, 6),
+      child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [tile(null), for (final c in subs) tile(c)]),
     );
   }
 

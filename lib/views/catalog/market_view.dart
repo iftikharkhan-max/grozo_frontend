@@ -43,8 +43,14 @@ class _MarketViewState extends State<MarketView> {
           .toList();
       final products = (r[1].data as List).map((p) => Product.fromJson(p));
       _byCategory = {};
+      final parentOf = <int?, int>{
+        for (final c in _categories!)
+          for (final sub in c.subcategories) sub.id: c.id
+      };
       for (final p in products) {
-        if (p.categoryId != null) (_byCategory[p.categoryId!] ??= []).add(p);
+        // Products in a sub-category are listed under its main category.
+        final top = parentOf[p.categoryId] ?? p.categoryId;
+        if (top != null) (_byCategory[top] ??= []).add(p);
       }
     });
   }

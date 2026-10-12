@@ -108,7 +108,11 @@ class _ProductsAdminViewState extends State<ProductsAdminView> {
     final cat = _categories.where((c) => c.id == p['category_id']).firstOrNull;
     final available = p['available'] == true;
     final details = [
-      cat?.name ?? 'No category',
+      cat == null
+          ? 'No category'
+          : cat.parentId == null
+              ? cat.name
+              : '${_categories.where((c) => c.id == cat.parentId).firstOrNull?.name ?? ''} › ${cat.name}',
       if ((p['unit'] ?? '').toString().isNotEmpty) p['unit'],
       if (p['stock_qty'] != null) 'Stock: ${p['stock_qty']}',
     ].join(' • ');
@@ -239,8 +243,15 @@ class _ProductEditViewState extends State<ProductEditView> {
                 items: [
                   const DropdownMenuItem<int?>(
                       value: null, child: Text('— No category —')),
-                  for (final c in widget.categories)
+                  // Main categories, each followed by its sub-categories.
+                  for (final c in widget.categories
+                      .where((c) => c.parentId == null)) ...[
                     DropdownMenuItem<int?>(value: c.id, child: Text(c.name)),
+                    for (final sub
+                        in widget.categories.where((x) => x.parentId == c.id))
+                      DropdownMenuItem<int?>(
+                          value: sub.id, child: Text('    ↳ ${sub.name}')),
+                  ],
                 ],
                 onChanged: (v) => setState(() => _categoryId = v),
               ),

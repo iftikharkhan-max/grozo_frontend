@@ -32,22 +32,29 @@ class _CategoriesAdminViewState extends State<CategoriesAdminView> {
     }
   }
 
-  Future<void> _edit([Map<String, dynamic>? c]) async {
-    final saved = await Navigator.push<bool>(context,
-        MaterialPageRoute(builder: (_) => CategoryEditView(category: c)));
+  Future<void> _edit([Map<String, dynamic>? c, int? parentId]) async {
+    final saved = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => CategoryEditView(
+                category: c, parentId: parentId, all: _items ?? const [])));
     if (saved == true) _load();
   }
 
   @override
   Widget build(BuildContext context) {
     Widget group(String title, String key) {
-      final list =
-          (_items ?? []).where((c) => c['display_group'] == key).toList();
+      // Main categories of this group; their sub-categories are listed under them.
+      final list = (_items ?? [])
+          .where((c) => c['display_group'] == key && c['parent_id'] == null)
+          .toList();
+      List<Map<String, dynamic>> subsOf(Map c) =>
+          (_items ?? []).where((s) => s['parent_id'] == c['id']).toList();
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: adminSection(title)),
-        for (final c in list)
+        for (final c in list) ...[
           ListTile(
             leading: SizedBox(
                 width: 44,
@@ -57,9 +64,33 @@ class _CategoriesAdminViewState extends State<CategoriesAdminView> {
             title: Text('${c['name']}  ${c['name_ur'] ?? ''}'),
             subtitle: Text(
                 'Order: ${c['sort_order']}${truthy(c['is_active']) ? '' : '  •  Hidden'}'),
-            trailing: const Icon(Icons.edit_outlined),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: 'Add sub-category',
+                icon: const Icon(Icons.playlist_add),
+                onPressed: () => _edit(null, c['id'] as int),
+              ),
+              const Icon(Icons.edit_outlined),
+            ]),
             onTap: () => _edit(c),
           ),
+          for (final s in subsOf(c))
+            ListTile(
+              dense: true,
+              contentPadding:
+                  const EdgeInsetsDirectional.only(start: 48, end: 16),
+              leading: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: NetImage(s['image_url'],
+                      fallbackEmoji: categoryEmoji('${s['name']}'))),
+              title: Text('↳ ${s['name']}  ${s['name_ur'] ?? ''}'),
+              subtitle: Text(
+                  'Sub-category  •  Order: ${s['sort_order']}${truthy(s['is_active']) ? '' : '  •  Hidden'}'),
+              trailing: const Icon(Icons.edit_outlined, size: 20),
+              onTap: () => _edit(s),
+            ),
+        ],
       ]);
     }
 
@@ -90,7 +121,14 @@ class _CategoriesAdminViewState extends State<CategoriesAdminView> {
 
 class CategoryEditView extends StatefulWidget {
   final Map<String, dynamic>? category;
-  const CategoryEditView({super.key, this.category});
+
+  /// Pre-selected main category when adding a sub-category.
+  final int? parentId;
+
+  /// Every category (to choose the main category from).
+  final List<Map<String, dynamic>> all;
+  const CategoryEditView(
+      {super.key, this.category, this.parentId, this.all = const []});
 
   @override
   State<CategoryEditView> createState() => _CategoryEditViewState();
@@ -106,6 +144,17 @@ class _CategoryEditViewState extends State<CategoryEditView> {
   late final _order = TextEditingController(text: '${c['sort_order'] ?? 0}');
   late String _group = c['display_group'] ?? 'market';
   late bool _active = c.isEmpty ? true : truthy(c['is_active']);
+
+  /// Main category this is a sub-category of (null = it is a main category).
+  late int? _parentId = c.isEmpty ? widget.parentId : c['parent_id'] as int?;
+
+  List<Map<String, dynamic>> get _mainCategories => widget.all
+      .where((x) => x['parent_id'] == null && x['id'] != c['id'])
+      .toList();
+
+  /// A category that has sub-categories cannot become one itself.
+  bool get _hasSubcategories =>
+      c.isNotEmpty && widget.all.any((x) => x['parent_id'] == c['id']);
   File? _image;
   bool _busy = false;
 
@@ -122,6 +171,7 @@ class _CategoryEditViewState extends State<CategoryEditView> {
         'subtitle': blankToNull(_subtitle),
         'subtitle_ur': blankToNull(_subtitleUr),
         'display_group': _group,
+        'parent_id': _parentId,
         'sort_order': int.tryParse(_order.text.trim()) ?? 0,
         'is_active': _active ? 1 : 0,
       },
@@ -162,16 +212,17 @@ class _CategoryEditViewState extends State<CategoryEditView> {
     if (res.status == 409 && data['code'] == 'category_has_products') {
       setState(() => _busy = false);
       final n = data['product_count'];
+      final subs = data['subcategory_count'];
       final choice = await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('"${c['name']}" has $n product(s)'),
+          title: Text('${data['error'] ?? '"${c['name']}" is not empty.'}'),
           content: Text(
-              'Hide it instead: the category and its products disappear from '
-              'the customer app but nothing is lost, and you can show it again '
-              'later.\n\nDelete anyway: the $n product(s) stay in the shop '
-              'without a category (customers still find them by search) until '
-              'you move them to another category in Products.'),
+              'Hide it instead: it disappears from the customer app but '
+              'nothing is lost, and you can show it again later.\n\n'
+              'Delete anyway: '
+              '${(n is num && n > 0) ? 'its $n product(s) stay in the shop without a category (customers still find them by search) until you move them in Products. ' : ''}'
+              '${(subs is num && subs > 0) ? 'Its $subs sub-categories are kept and become main categories.' : ''}'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -208,7 +259,9 @@ class _CategoryEditViewState extends State<CategoryEditView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: adminAppBar(
-          widget.category == null ? 'Add category' : 'Edit category',
+          widget.category == null
+              ? (_parentId == null ? 'Add category' : 'Add sub-category')
+              : (_parentId == null ? 'Edit category' : 'Edit sub-category'),
           actions: [
             if (widget.category != null)
               IconButton(
@@ -232,21 +285,49 @@ class _CategoryEditViewState extends State<CategoryEditView> {
               direction: TextDirection.rtl),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: DropdownButtonFormField<String>(
-              isExpanded:
-                  true, // long names use the full width and never overflow
-              initialValue: _group,
-              decoration: const InputDecoration(labelText: 'Where it appears'),
-              items: const [
-                DropdownMenuItem(
-                    value: 'featured',
-                    child: Text('Featured (big card + product strip)')),
-                DropdownMenuItem(
-                    value: 'market', child: Text('Market Shopping tile')),
+            child: DropdownButtonFormField<int?>(
+              isExpanded: true,
+              initialValue: _mainCategories.any((x) => x['id'] == _parentId)
+                  ? _parentId
+                  : null,
+              decoration: InputDecoration(
+                  labelText: 'Type',
+                  helperText: _hasSubcategories
+                      ? 'Has sub-categories, so it stays a main category.'
+                      : 'A sub-category appears inside its main category.'),
+              items: [
+                const DropdownMenuItem<int?>(
+                    value: null, child: Text('Main category')),
+                for (final m in _mainCategories)
+                  DropdownMenuItem<int?>(
+                      value: m['id'] as int,
+                      child: Text('Sub-category of ${m['name']}')),
               ],
-              onChanged: (v) => setState(() => _group = v!),
+              onChanged: _hasSubcategories
+                  ? null
+                  : (v) => setState(() => _parentId = v),
             ),
           ),
+          // A sub-category is shown inside its main category, not on the home page.
+          if (_parentId == null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DropdownButtonFormField<String>(
+                isExpanded:
+                    true, // long names use the full width and never overflow
+                initialValue: _group,
+                decoration:
+                    const InputDecoration(labelText: 'Where it appears'),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'featured',
+                      child: Text('Featured (big card + product strip)')),
+                  DropdownMenuItem(
+                      value: 'market', child: Text('Market Shopping tile')),
+                ],
+                onChanged: (v) => setState(() => _group = v!),
+              ),
+            ),
           adminNumber(_order, 'Display order',
               hint: 'Smaller numbers appear first', decimal: false),
           SwitchListTile(

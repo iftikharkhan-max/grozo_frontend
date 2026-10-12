@@ -78,9 +78,18 @@ android {
             }
             isMinifyEnabled = false
             isShrinkResources = false
+            manifestPlaceholders["appLabel"] = "Grozo"
         }
         debug {
             signingConfig = signingConfigs.getByName("debug")
+            // Test builds are a separate app ("Grozo Test", com.iftikhar.grozo.debug)
+            // so they install next to the Play Store version instead of being
+            // refused for having a different signature.
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "Grozo Test"
+        }
+        getByName("profile") {
+            manifestPlaceholders["appLabel"] = "Grozo Test"
         }
     }
 }

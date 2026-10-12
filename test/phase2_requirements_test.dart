@@ -55,16 +55,41 @@ void main() {
     LocationPickerView.tileUrl = null;
   });
 
-  group('5. Compact home sections', () {
-    testWidgets('Market Shopping and Discounts are no taller than needed', (tester) async {
+  group('Home layout', () {
+    testWidgets('Market Shopping is 1.5x taller; Deals is one compact row', (tester) async {
       await h.startApp(tester);
       final market = tester.getRect(find.text('Market Shopping').first);
       final deals = tester.getRect(find.text('Deals & Discounts'));
-      expect(deals.top - market.top, lessThanOrEqualTo(135), reason: 'market panel ≤ 120 + gap');
+      // Was 120 px on this phone (393x851); now 180.
+      expect(deals.top - market.top, inInclusiveRange(175, 200));
       final dealsBox = find.ancestor(
           of: find.text('Deals & Discounts'),
-          matching: find.byWidgetPredicate((w) => w is SizedBox && (w.height ?? 0) >= 150 && w.height! <= 170));
-      expect(dealsBox, findsOneWidget, reason: 'discounts strip capped at 170');
+          matching: find.byWidgetPredicate((w) => w is SizedBox && (w.height ?? 0) >= 100 && w.height! <= 110));
+      expect(dealsBox, findsOneWidget, reason: 'deals strip gave up the space');
+      expect(tester.takeException(), isNull);
+      await h.stopApp(tester);
+    });
+
+    testWidgets('How it works and Delivery Charges are slides in the banner', (tester) async {
+      await h.startApp(tester);
+      expect(find.byTooltip('How it works?'), findsNothing, reason: 'buttons removed from Market Shopping');
+      expect(find.byTooltip('Delivery Charges'), findsNothing);
+
+      // Slides: Order Anything, (banners: none in this fixture), How it works, Delivery Charges.
+      final carousel = find.byType(PageView).first;
+      await tester.drag(carousel, const Offset(-350, 0));
+      await h.settle(tester);
+      expect(find.text('How it works?'), findsOneWidget);
+      await tester.tap(find.text('How it works?'));
+      await h.settle(tester);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(find.text('OK'));
+      await h.settle(tester);
+
+      await tester.drag(carousel, const Offset(-350, 0));
+      await h.settle(tester);
+      expect(find.text('Delivery Charges'), findsOneWidget);
+      expect(find.textContaining('km Rs.'), findsOneWidget, reason: 'charges summarised on the slide');
       expect(tester.takeException(), isNull);
       await h.stopApp(tester);
     });
