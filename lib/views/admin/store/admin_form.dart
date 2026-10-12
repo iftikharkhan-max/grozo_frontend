@@ -87,8 +87,18 @@ class AdminImagePicker extends StatelessWidget {
   final String? currentUrl;
   final File? picked;
   final ValueChanged<File> onPicked;
+
+  /// Photos are shrunk before upload so they take little space in the
+  /// database and load quickly on mobile data. Product and category photos are
+  /// shown small (about 30-60 KB after this); banners are shown wide and pass
+  /// [wide] to keep more detail (about 80-120 KB).
+  final bool wide;
   const AdminImagePicker(
-      {super.key, this.currentUrl, this.picked, required this.onPicked});
+      {super.key,
+      this.currentUrl,
+      this.picked,
+      required this.onPicked,
+      this.wide = false});
 
   @override
   Widget build(BuildContext context) {
@@ -116,8 +126,9 @@ class AdminImagePicker extends StatelessWidget {
             onPressed: () async {
               final x = await ImagePicker().pickImage(
                   source: ImageSource.gallery,
-                  maxWidth: 1200,
-                  imageQuality: 85);
+                  maxWidth: wide ? 1000 : 600,
+                  maxHeight: wide ? 1000 : 600,
+                  imageQuality: wide ? 80 : 75);
               if (x != null) onPicked(File(x.path));
             },
           ),

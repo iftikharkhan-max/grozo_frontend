@@ -219,6 +219,7 @@ class _BannerEditViewState extends State<BannerEditView> {
           AdminImagePicker(
               currentUrl: b['image_url'],
               picked: _image,
+              wide: true,
               onPicked: (f) => setState(() => _image = f)),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
