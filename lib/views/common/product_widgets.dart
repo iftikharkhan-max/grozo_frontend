@@ -70,6 +70,14 @@ class PriceText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (product.hasVariants) {
+      // Several sizes/weights: show the lowest price.
+      return Text('${context.tr('price_from')} Rs. ${money(product.priceFrom)}',
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: fontSize,
+              color: brandPrimary));
+    }
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 6,
@@ -99,7 +107,34 @@ class AddToCartControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final qty = state.qtyInCart(product.id);
+    if (product.hasVariants) {
+      // Choose the size/weight first; shows how many are already in the cart.
+      final inCart = state.qtyOfProduct(product.id);
+      return SizedBox(
+        height: compact ? 32 : 44,
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: inCart > 0 ? brandGreenLight : brandGreen,
+            foregroundColor: inCart > 0 ? brandPrimary : Colors.white,
+            padding: EdgeInsets.zero,
+            side: inCart > 0 ? const BorderSide(color: brandGreen) : null,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: () => showVariantPicker(context, product),
+          icon: Icon(inCart > 0 ? Icons.check : Icons.tune, size: 16),
+          label: FittedBox(
+            child: Text(
+                inCart > 0
+                    ? context.trf('in_cart_n', {'n': inCart})
+                    : context.tr('choose'),
+                style: const TextStyle(fontSize: 13)),
+          ),
+        ),
+      );
+    }
+    final qty = state.qtyInCart(product);
 
     if (!product.available) {
       return Text(context.tr('out_of_stock'),
@@ -138,7 +173,7 @@ class AddToCartControl extends StatelessWidget {
             child: _StepButton(
                 icon: Icons.remove,
                 label: 'Decrease quantity',
-                onTap: () => state.setQty(product.id, qty - 1)),
+                onTap: () => state.setQty(product.cartKey, qty - 1)),
           ),
           Text('$qty',
               style:
@@ -154,6 +189,40 @@ class AddToCartControl extends StatelessWidget {
     );
   }
 }
+
+/// Sizes/weights of a product, each with its picture, price and add button.
+Future<void> showVariantPicker(BuildContext context, Product product) =>
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
+          child: ListView(shrinkWrap: true, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                  '${product.displayName(ctx.lang)} – ${ctx.tr('choose_option')}',
+                  style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            for (final v in product.variants)
+              ListTile(
+                leading: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: NetImage(v.imageUrl,
+                        fallbackEmoji: categoryEmoji(product.name))),
+                title: Text(v.unit ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: PriceText(v),
+                trailing: SizedBox(width: 112, child: AddToCartControl(v)),
+              ),
+          ]),
+        ),
+      ),
+    );
 
 class _StepButton extends StatelessWidget {
   final IconData icon;

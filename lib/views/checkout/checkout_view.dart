@@ -123,7 +123,11 @@ class _CheckoutViewState extends State<CheckoutView> {
   List<Map<String, dynamic>> _cartItems() => context
       .read<AppState>()
       .cartLines
-      .map((l) => {'productId': l.product.id, 'qty': l.qty})
+      .map((l) => {
+            'productId': l.product.id,
+            if (l.product.variantId != null) 'variantId': l.product.variantId,
+            'qty': l.qty
+          })
       .toList();
 
   Future<void> _requote() async {
@@ -224,12 +228,14 @@ class _CheckoutViewState extends State<CheckoutView> {
   void _fixCart() {
     final state = context.read<AppState>();
     for (final p in _itemProblems) {
-      final id = p['product_id'] as int;
+      final key = p['variant_id'] == null
+          ? '${p['product_id']}'
+          : '${p['product_id']}:${p['variant_id']}';
       final avail = p['available_qty'] as int?;
       if (avail == null || avail <= 0) {
-        state.removeFromCart(id);
+        state.removeFromCart(key);
       } else {
-        state.setQty(id, avail);
+        state.setQty(key, avail);
       }
     }
     setState(() => _banner = null);
@@ -247,6 +253,8 @@ class _CheckoutViewState extends State<CheckoutView> {
         return '$name: ${context.trf('problem_stock', {
               'n': p['available_qty']
             })}';
+      case 'choose_variant':
+        return '$name: ${context.tr('problem_choose_variant')}';
       case 'max_per_order':
         return '$name: ${context.trf('problem_max', {
               'n': p['available_qty']
@@ -714,7 +722,9 @@ class _CheckoutViewState extends State<CheckoutView> {
           row(context.tr('discount'), '− Rs. ${money(discount)}',
               color: brandAccent),
         row(
-            context.tr('delivery_charge'),
+            q['delivery_distance_km'] == null || itemsOnly
+                ? context.tr('delivery_charge')
+                : '${context.tr('delivery_charge')} (${(q['delivery_distance_km'] as num).toStringAsFixed(1)} km)',
             itemsOnly
                 ? context.tr('after_branch')
                 : delivery == null

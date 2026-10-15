@@ -85,7 +85,7 @@ class StaffOrderInfo extends StatelessWidget {
         Text(
           o.deliveryCharge == null
               ? 'Delivery charge: to be confirmed at delivery'
-              : 'Delivery charge: Rs. ${money(o.deliveryCharge!)}',
+              : 'Delivery charge: Rs. ${money(o.deliveryCharge!)}${o.deliveryKm == null ? '' : ' (${o.deliveryKm!.toStringAsFixed(1)} km)'}',
           style: const TextStyle(fontSize: 12, color: Colors.black54),
         ),
       Text(

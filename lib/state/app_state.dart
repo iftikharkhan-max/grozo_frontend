@@ -44,7 +44,8 @@ class AppState extends ChangeNotifier {
 
   UserModel? user;
   String language = 'en';
-  final Map<int, CartLine> _cart = {};
+  /// Keyed by [Product.cartKey], so each variation is its own line.
+  final Map<String, CartLine> _cart = {};
   final List<CustomItem> customItems = [];
 
   /// Active branches and the one the customer picked in the header.
@@ -105,7 +106,7 @@ class AppState extends ChangeNotifier {
       try {
         for (final l in (jsonDecode(cartJson) as List)) {
           final line = CartLine.fromJson(l);
-          _cart[line.product.id] = line;
+          _cart[line.product.cartKey] = line;
         }
       } catch (_) {}
     }
@@ -281,28 +282,34 @@ class AppState extends ChangeNotifier {
     }
     _saveCart();
   }
-  int qtyInCart(int productId) => _cart[productId]?.qty ?? 0;
+  int qtyInCart(Product p) => _cart[p.cartKey]?.qty ?? 0;
+
+  /// All variations of a product together (for "2 in cart" on its card).
+  int qtyOfProduct(int productId) => _cart.values
+      .where((l) => l.product.id == productId)
+      .fold(0, (s, l) => s + l.qty);
 
   /// Estimated items total from the last known prices; the server re-checks at checkout.
   double get cartEstimate => _cart.values.fold(0.0, (s, l) => s + l.product.finalPrice * l.qty);
 
   /// Returns false when the quantity limit (stock / per-order max) was reached.
   bool addToCart(Product p, {int qty = 1}) {
-    if (!p.available) return false;
-    final current = _cart[p.id]?.qty ?? 0;
+    // A product with variations is added as one of them.
+    if (!p.available || p.hasVariants) return false;
+    final current = _cart[p.cartKey]?.qty ?? 0;
     final limit = p.maxQty;
     final next = limit == null ? current + qty : (current + qty).clamp(0, limit);
     if (next == current) return false;
-    _cart[p.id] = CartLine(p, next);
+    _cart[p.cartKey] = CartLine(p, next);
     _saveCart();
     return next == current + qty;
   }
 
-  void setQty(int productId, int qty) {
-    final line = _cart[productId];
+  void setQty(String key, int qty) {
+    final line = _cart[key];
     if (line == null) return;
     if (qty <= 0) {
-      _cart.remove(productId);
+      _cart.remove(key);
     } else {
       final limit = line.product.maxQty;
       line.qty = limit == null ? qty : qty.clamp(1, limit);
@@ -313,13 +320,21 @@ class AppState extends ChangeNotifier {
   /// Replaces the stored product details with fresh ones from the server.
   void refreshCartProducts(List<Product> fresh) {
     for (final p in fresh) {
-      final line = _cart[p.id];
-      if (line != null) _cart[p.id] = CartLine(p, line.qty);
+      for (final entry in _cart.entries.toList()) {
+        final line = entry.value;
+        if (line.product.id != p.id) continue;
+        final now = line.product.variantId == null
+            ? p
+            : p.variants
+                .where((v) => v.variantId == line.product.variantId)
+                .firstOrNull;
+        if (now != null) _cart[entry.key] = CartLine(now, line.qty);
+      }
     }
     _saveCart();
   }
 
-  void removeFromCart(int productId) => setQty(productId, 0);
+  void removeFromCart(String key) => setQty(key, 0);
 
   void clearCart() {
     _cart.clear();

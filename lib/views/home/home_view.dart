@@ -123,8 +123,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                                 _load();
                               })
                           : LayoutBuilder(
-                              builder: (context, box) =>
-                                  _sections(_data!, box.maxHeight)),
+                              builder: (context, box) => _sections(
+                                  _data!, box.maxHeight, box.maxWidth)),
                 ),
               ]),
             ),
@@ -134,15 +134,39 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
     );
   }
 
-  Widget _sections(HomeData d, double height) {
+  /// Banner slides are 3 : 1 (width : height) – the shape to design
+  /// banners in (e.g. 1200 x 400 px). Market Shopping gets the rest of the
+  /// screen. Short phones shrink the banner only as much as needed to keep
+  /// Market Shopping at least [_minMarket] tall.
+  static const bannerRatio = 3.0;
+  static const _minMarket = 150.0;
+
+  Widget _sections(HomeData d, double height, double width) {
     // Short phones drop the optional extras so the essentials keep their size.
     final compact = height < 520;
-    final gap = SizedBox(height: compact ? 6 : 8);
+    final gapH = compact ? 6.0 : 8.0;
+    final gap = SizedBox(height: gapH);
+    const padTop = 8.0, padBottom = 6.0, dots = 11.0, orderNowClearance = 24.0;
+    final featuredH = d.featured.isEmpty ? 0.0 : (compact ? 62.0 : 74.0);
+    final dealsH =
+        d.discounted.isEmpty ? 0.0 : (height * 0.2).clamp(100.0, 110.0);
+    final gaps = gapH *
+        (1 + (d.featured.isEmpty ? 0 : 1) + (d.discounted.isEmpty ? 0 : 1));
+    final fixed = padTop +
+        padBottom +
+        dots +
+        featuredH +
+        dealsH +
+        gaps +
+        orderNowClearance;
+    final fullBanner = (width - 24) / bannerRatio;
+    final bannerH = (height - fixed - _minMarket).clamp(40.0, fullBanner);
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      padding: const EdgeInsets.fromLTRB(12, padTop, 12, padBottom),
       child: Column(children: [
-        Expanded(
-          flex: compact ? 9 : 16,
+        SizedBox(
+          height: bannerH + dots,
           child: _PromoCarousel(
               banners: d.banners,
               tiers: d.deliveryCharges,
@@ -158,28 +182,24 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
         gap,
         if (d.featured.isNotEmpty) ...[
           SizedBox(
-            height: compact ? 62 : 74,
+            height: featuredH,
             child: _FeaturedRow(categories: d.featured, onTap: _openCategory),
           ),
           gap,
         ],
-        // Market Shopping is 1.5x its earlier height; Deals & Discounts gave
-        // up that space and shows one compact row. The banner takes the rest.
-        SizedBox(
-          height: (height * 0.315).clamp(132.0, 180.0),
+        // Market Shopping takes all the remaining space (it replaced the old
+        // "Quality products / Fresh / Delivery / Cash on delivery" row too).
+        Expanded(
           child: _MarketShopping(
               categories: d.market, onTap: _openCategory, compact: compact),
         ),
         if (d.discounted.isNotEmpty) ...[
           gap,
-          SizedBox(
-              height: (height * 0.2).clamp(100.0, 110.0),
-              child: _DealsStrip(products: d.discounted)),
+          SizedBox(height: dealsH, child: _DealsStrip(products: d.discounted)),
         ],
-        if (!compact) ...[gap, const _TrustRow()],
-        // Short phones end with the deals row: keep it clear of the round
+        // The page ends with the deals row: keep it clear of the round
         // Order Now button, which rises above the footer.
-        if (compact) const SizedBox(height: 24),
+        const SizedBox(height: orderNowClearance),
       ]),
     );
   }
@@ -746,16 +766,17 @@ class _MarketShopping extends StatelessWidget {
             itemCount: categories.length + 1,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (ctx, i) {
-              if (i == categories.length) {
-                // Anything else from the market.
+              // "Item not in the list" comes first so it is always visible.
+              if (i == 0) {
                 return _Tile(
                   label: context.tr('not_in_list'),
+                  highlight: true,
                   onTap: () => showAddCustomItem(context),
                   child: const Icon(Icons.add_shopping_cart,
                       color: brandAccent, size: 34),
                 );
               }
-              final c = categories[i];
+              final c = categories[i - 1];
               return _Tile(
                 label: c.displayName(lang),
                 onTap: () => onTap(c),
@@ -774,12 +795,24 @@ class _Tile extends StatelessWidget {
   final String label;
   final Widget child;
   final VoidCallback onTap;
-  const _Tile({required this.label, required this.child, required this.onTap});
+
+  /// Stands out (yellow, orange border) – used for "Item not in the list".
+  final bool highlight;
+  const _Tile(
+      {required this.label,
+      required this.child,
+      required this.onTap,
+      this.highlight = false});
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: highlight ? brandYellowLight : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: highlight
+              ? const BorderSide(color: brandAccent, width: 1.5)
+              : BorderSide.none,
+        ),
         elevation: 0.5,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -947,41 +980,6 @@ class _DealCard extends StatelessWidget {
             ]),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _TrustRow extends StatelessWidget {
-  const _TrustRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (Icons.verified_user_outlined, 'trust_quality'),
-      (Icons.eco_outlined, 'trust_fresh'),
-      (Icons.local_shipping_outlined, 'trust_fast'),
-      (Icons.payments_outlined, 'trust_payment'),
-    ];
-    return _Panel(
-      color: brandGreenLight,
-      borderColor: brandGreen.withValues(alpha: 0.3),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-      child: Row(
-        children: [
-          for (final (icon, key) in items)
-            Expanded(
-              child: Column(children: [
-                Icon(icon, color: brandGreen),
-                const SizedBox(height: 4),
-                Text(context.tr(key),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    style: const TextStyle(
-                        fontSize: 10.5, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-        ],
       ),
     );
   }

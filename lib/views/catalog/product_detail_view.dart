@@ -27,9 +27,20 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     });
   }
 
+  /// Chosen size/weight when the product has variations.
+  Product? _choice;
+
   @override
   Widget build(BuildContext context) {
     final lang = context.lang;
+    // Picture, price, stock and Add follow the chosen variation.
+    final shown = _p.hasVariants
+        ? (_p.variants
+                .where((v) => v.variantId == _choice?.variantId)
+                .firstOrNull ??
+            _p.variants.firstWhere((v) => v.available,
+                orElse: () => _p.variants.first))
+        : _p;
 
     return HidesOrderNowButton(
         child: Scaffold(
@@ -54,24 +65,38 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               borderRadius: BorderRadius.circular(12),
               child: Container(
                   color: Colors.white,
-                  child: NetImage(_p.imageUrl, fit: BoxFit.contain)),
+                  child: NetImage(shown.imageUrl, fit: BoxFit.contain)),
             ),
           ),
           const SizedBox(height: 16),
           Text(_p.displayName(lang),
               style: Theme.of(context).textTheme.headlineSmall),
-          if ((_p.unit ?? '').isNotEmpty)
+          if (_p.hasVariants) ...[
+            const SizedBox(height: 8),
+            Text(context.tr('choose_option'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              for (final v in _p.variants)
+                ChoiceChip(
+                  label: Text('${v.unit}  •  Rs. ${money(v.finalPrice)}'),
+                  selected: v.variantId == shown.variantId,
+                  onSelected:
+                      v.available ? (_) => setState(() => _choice = v) : null,
+                ),
+            ]),
+          ] else if ((_p.unit ?? '').isNotEmpty)
             Text(_p.unit!, style: const TextStyle(color: Colors.black54)),
           const SizedBox(height: 8),
           Row(children: [
-            Flexible(child: PriceText(_p, fontSize: 22)),
-            if (_p.hasDiscount) ...[
+            Flexible(child: PriceText(shown, fontSize: 22)),
+            if (shown.hasDiscount) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                     color: brandAccent, borderRadius: BorderRadius.circular(6)),
-                child: Text('${_p.discountPercent}% ${context.tr('off')}',
+                child: Text('${shown.discountPercent}% ${context.tr('off')}',
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold)),
               ),
@@ -79,17 +104,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           ]),
           const SizedBox(height: 8),
           Row(children: [
-            Icon(_p.available ? Icons.check_circle : Icons.cancel,
-                color: _p.available ? brandGreen : Colors.red, size: 18),
+            Icon(shown.available ? Icons.check_circle : Icons.cancel,
+                color: shown.available ? brandGreen : Colors.red, size: 18),
             const SizedBox(width: 6),
             Text(
-              !_p.available
+              !shown.available
                   ? context.tr('out_of_stock')
-                  : _p.stockQty != null && _p.stockQty! <= 10
-                      ? 'In stock (${_p.stockQty} left)'
+                  : shown.stockQty != null && shown.stockQty! <= 10
+                      ? 'In stock (${shown.stockQty} left)'
                       : 'In stock',
               style: TextStyle(
-                  color: _p.available ? brandGreen : Colors.red,
+                  color: shown.available ? brandGreen : Colors.red,
                   fontWeight: FontWeight.w600),
             ),
           ]),
@@ -102,7 +127,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: AddToCartControl(_p, compact: false),
+          child: AddToCartControl(shown, compact: false),
         ),
       ),
     ));

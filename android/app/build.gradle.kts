@@ -56,6 +56,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = appVersionCode
         versionName = appVersionName
+        // Google Maps key from android/key.properties (mapsApiKey=...), kept out
+        // of git. Without it the app shows OpenStreetMap instead.
+        manifestPlaceholders["mapsApiKey"] =
+            (keystoreProperties.getProperty("mapsApiKey") ?: System.getenv("MAPS_API_KEY") ?: "").trim()
     }
 
     signingConfigs {

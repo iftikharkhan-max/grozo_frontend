@@ -26,7 +26,9 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
   Map<String, dynamic>?
       _customer; // existing customer, or null for a new caller
   List<Product> _products = [];
-  final Map<int, int> _qty = {};
+
+  /// Quantity per item, keyed by [Product.cartKey] (variations are separate).
+  final Map<String, int> _qty = {};
   List<Map<String, dynamic>> _tiers = [];
   List<Map<String, dynamic>> _branches = [];
   double? _deliveryCharge;
@@ -46,6 +48,8 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
         if (r[0].ok) {
           _products = (r[0].data as List)
               .map((p) => Product.fromJson(p))
+              // A product with sizes/weights is listed once per variation.
+              .expand((p) => p.hasVariants ? p.variants : [p])
               .where((p) => p.available)
               .toList();
         }
@@ -97,7 +101,7 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
   }
 
   double get _itemsTotal => _qty.entries.fold(0.0, (s, e) {
-        final p = _products.where((p) => p.id == e.key).firstOrNull;
+        final p = _products.where((p) => p.cartKey == e.key).firstOrNull;
         return s + (p?.finalPrice ?? 0) * e.value;
       });
 
@@ -141,22 +145,24 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
                       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                         IconButton(
                           icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: (_qty[p.id] ?? 0) == 0
+                          onPressed: (_qty[p.cartKey] ?? 0) == 0
                               ? null
                               : () => setSheet(() => setState(() {
-                                    final q = (_qty[p.id] ?? 0) - 1;
-                                    q <= 0 ? _qty.remove(p.id) : _qty[p.id] = q;
+                                    final q = (_qty[p.cartKey] ?? 0) - 1;
+                                    q <= 0
+                                        ? _qty.remove(p.cartKey)
+                                        : _qty[p.cartKey] = q;
                                   })),
                         ),
-                        Text('${_qty[p.id] ?? 0}',
+                        Text('${_qty[p.cartKey] ?? 0}',
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold)),
                         IconButton(
                           icon: const Icon(Icons.add_circle_outline),
                           onPressed: () => setSheet(() => setState(() {
-                                final q = (_qty[p.id] ?? 0) + 1;
+                                final q = (_qty[p.cartKey] ?? 0) + 1;
                                 if (p.maxQty == null || q <= p.maxQty!) {
-                                  _qty[p.id] = q;
+                                  _qty[p.cartKey] = q;
                                 }
                               })),
                         ),
@@ -200,7 +206,13 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
       'mobile': _mobile.text.trim(),
       'address': _address.text.trim(),
       'items': [
-        for (final e in _qty.entries) {'productId': e.key, 'qty': e.value}
+        for (final e in _qty.entries)
+          {
+            'productId': int.parse(e.key.split(':').first),
+            if (e.key.contains(':'))
+              'variantId': int.parse(e.key.split(':').last),
+            'qty': e.value
+          }
       ],
       'requestText': _extra.text.trim(),
       'deliveryCharge': _deliveryCharge,
@@ -232,8 +244,8 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
   @override
   Widget build(BuildContext context) {
     final chosen = _qty.entries
-        .map(
-            (e) => (_products.where((p) => p.id == e.key).firstOrNull, e.value))
+        .map((e) =>
+            (_products.where((p) => p.cartKey == e.key).firstOrNull, e.value))
         .where((x) => x.$1 != null)
         .toList();
     return Scaffold(

@@ -56,12 +56,15 @@ void main() {
   });
 
   group('Home layout', () {
-    testWidgets('Market Shopping is 1.5x taller; Deals is one compact row', (tester) async {
+    testWidgets('Market Shopping is bigger; Deals is one compact row', (tester) async {
       await h.startApp(tester);
       final market = tester.getRect(find.text('Market Shopping').first);
       final deals = tester.getRect(find.text('Deals & Discounts'));
-      // Was 120 px on this phone (393x851); now 180.
-      expect(deals.top - market.top, inInclusiveRange(175, 200));
+      // Was 120 px on this phone (393x851), then 180; now it takes all the
+      // space left after a 3:1 banner (incl. the removed bottom row).
+      expect(deals.top - market.top, greaterThan(200));
+      final banner = tester.getRect(find.byType(PageView).first);
+      expect(banner.width / banner.height, closeTo(3.0, 0.05), reason: 'banners are 3:1');
       final dealsBox = find.ancestor(
           of: find.text('Deals & Discounts'),
           matching: find.byWidgetPredicate((w) => w is SizedBox && (w.height ?? 0) >= 100 && w.height! <= 110));

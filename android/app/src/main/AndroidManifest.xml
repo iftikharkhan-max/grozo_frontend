@@ -16,6 +16,11 @@
         <!-- allowBackup=false: a restored backup holds a login that this phone's
              keystore cannot decrypt, which logged customers out (flutter_secure_storage). -->
 
+        <!-- Google Maps for the delivery-location picker (empty = OpenStreetMap). -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${mapsApiKey}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

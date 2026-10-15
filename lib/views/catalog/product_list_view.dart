@@ -11,7 +11,14 @@ import '../cart/cart_view.dart';
 class ProductListView extends StatefulWidget {
   final Category? category;
   final bool searchMode;
-  const ProductListView({super.key, this.category, this.searchMode = false});
+
+  /// Opens with this sub-category of [category] already selected.
+  final int? initialSubcategoryId;
+  const ProductListView(
+      {super.key,
+      this.category,
+      this.searchMode = false,
+      this.initialSubcategoryId});
 
   @override
   State<ProductListView> createState() => _ProductListViewState();
@@ -27,7 +34,9 @@ class _ProductListViewState extends State<ProductListView> {
 
   /// Sub-category chosen from the tiles at the top; null shows everything
   /// in the main category.
-  Category? _sub;
+  late Category? _sub = widget.category?.subcategories
+      .where((s) => s.id == widget.initialSubcategoryId)
+      .firstOrNull;
 
   @override
   void initState() {

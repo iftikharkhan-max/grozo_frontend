@@ -16,6 +16,9 @@ int? _in(dynamic v) => v == null
 
 class OrderLine {
   final int? productId;
+
+  /// The variation bought (e.g. 1 kg); its name is in [unit].
+  final int? variantId;
   final String name;
   final String? nameUr;
   final String? unit;
@@ -27,6 +30,7 @@ class OrderLine {
 
   OrderLine.fromJson(Map<String, dynamic> j)
       : productId = _in(j['product_id']),
+        variantId = _in(j['variant_id']),
         name = (j['name'] ?? '').toString(),
         nameUr = j['name_ur']?.toString(),
         unit = j['unit']?.toString(),
@@ -70,6 +74,9 @@ class Order {
   final double? subtotal;
   final double? discountTotal;
   final double? deliveryCharge;
+
+  /// Distance (km) from the branch to the delivery pin that set the charge.
+  final double? deliveryKm;
   final String paymentMethod;
   final String deliveryMethod;
   final String? destination;
@@ -77,6 +84,9 @@ class Order {
   final String? contactMobile;
   final bool claimedByManager;
   final String? riderName;
+
+  /// Phone of the branch handling the order (for "Call about this order").
+  final String? branchPhone;
   final String? riderMobile;
   final double? riderLat;
   final double? riderLng;
@@ -110,6 +120,7 @@ class Order {
         subtotal = _dn(j['subtotal']),
         discountTotal = _dn(j['discount_total']),
         deliveryCharge = _dn(j['delivery_charge']),
+        deliveryKm = _dn(j['delivery_distance_km']),
         paymentMethod = (j['payment_method'] ?? 'COD').toString(),
         deliveryMethod = (j['delivery_method'] ?? 'delivery').toString(),
         destination = j['destination']?.toString(),
@@ -117,6 +128,7 @@ class Order {
         contactMobile = j['contact_mobile']?.toString(),
         claimedByManager = j['manager_id'] != null,
         riderName = j['rider_name']?.toString(),
+        branchPhone = j['branch_phone']?.toString(),
         riderMobile = j['rider_mobile']?.toString(),
         riderLat = _dn(j['rider_location']?['latitude']),
         riderLng = _dn(j['rider_location']?['longitude']),

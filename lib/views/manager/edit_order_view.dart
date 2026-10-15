@@ -62,17 +62,24 @@ class _EditOrderViewState extends State<EditOrderView> {
     ];
     final wanted = req?['items'];
     if (wanted is List) {
-      final byId = {for (final l in lines) l.productId: l};
+      final byKey = {for (final l in lines) l.key: l};
       final next = <EditLine>[];
       for (final w in wanted) {
         final id = (w['productId'] as num).toInt();
+        final variantId = (w['variantId'] as num?)?.toInt();
         final qty = (w['qty'] as num).toInt();
-        var line = byId[id];
+        var line = byKey['$id:${variantId ?? 0}'];
         if (line == null) {
           final p = await Api.get('/products/$id');
           if (!p.ok) continue;
-          line = EditLine.fromProduct(
-              Product.fromJson(Map<String, dynamic>.from(p.data)));
+          final product = Product.fromJson(Map<String, dynamic>.from(p.data));
+          final buy = variantId == null
+              ? product
+              : product.variants
+                  .where((v) => v.variantId == variantId)
+                  .firstOrNull;
+          if (buy == null) continue;
+          line = EditLine.fromProduct(buy);
         }
         line.qty = qty;
         next.add(line);

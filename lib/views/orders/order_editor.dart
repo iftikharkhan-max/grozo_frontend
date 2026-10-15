@@ -9,6 +9,9 @@ import '../common/product_widgets.dart';
 /// One product line while an order is being changed.
 class EditLine {
   final int productId;
+
+  /// Size/weight bought, when the product has variations (name in [unit]).
+  final int? variantId;
   final String name;
   final String? nameUr;
   final String? unit;
@@ -19,6 +22,7 @@ class EditLine {
 
   EditLine(
       {required this.productId,
+      this.variantId,
       required this.name,
       this.nameUr,
       this.unit,
@@ -27,6 +31,7 @@ class EditLine {
 
   factory EditLine.fromOrderLine(OrderLine l) => EditLine(
       productId: l.productId!,
+      variantId: l.variantId,
       name: l.name,
       nameUr: l.nameUr,
       unit: l.unit,
@@ -35,6 +40,7 @@ class EditLine {
 
   factory EditLine.fromProduct(Product p) => EditLine(
       productId: p.id,
+      variantId: p.variantId,
       name: p.name,
       nameUr: p.nameUr,
       unit: p.unit,
@@ -44,7 +50,13 @@ class EditLine {
   String displayName(String lang) =>
       lang == 'ur' && (nameUr ?? '').isNotEmpty ? nameUr! : name;
 
-  Map<String, dynamic> toJson() => {'productId': productId, 'qty': qty};
+  String get key => '$productId:${variantId ?? 0}';
+
+  Map<String, dynamic> toJson() => {
+        'productId': productId,
+        if (variantId != null) 'variantId': variantId,
+        'qty': qty
+      };
 }
 
 /// Lines of an order with − qty + steppers, remove, and "Add product".
@@ -59,7 +71,9 @@ class OrderItemsEditor extends StatelessWidget {
     final p = await Navigator.push<Product>(
         context, MaterialPageRoute(builder: (_) => const ProductPickerView()));
     if (p == null) return;
-    final existing = lines.where((l) => l.productId == p.id).firstOrNull;
+    final existing = lines
+        .where((l) => l.productId == p.id && l.variantId == p.variantId)
+        .firstOrNull;
     if (existing != null) {
       existing.qty++;
     } else {
@@ -222,7 +236,30 @@ class _ProductPickerViewState extends State<ProductPickerView> {
                         if (!p.available) context.tr('out_of_stock'),
                       ].join('  •  ')),
                       trailing: const Icon(Icons.add_circle, color: brandGreen),
-                      onTap: () => Navigator.pop(context, p),
+                      onTap: () async {
+                        // Products with sizes/weights: pick one of them.
+                        final pick = p.hasVariants
+                            ? await showDialog<Product>(
+                                context: context,
+                                builder: (ctx) => SimpleDialog(
+                                  title: Text(p.displayName(lang)),
+                                  children: [
+                                    for (final v in p.variants)
+                                      SimpleDialogOption(
+                                        onPressed: v.available
+                                            ? () => Navigator.pop(ctx, v)
+                                            : null,
+                                        child: Text(
+                                            '${v.unit}  •  Rs. ${money(v.finalPrice)}${v.available ? '' : '  (${context.tr('out_of_stock')})'}'),
+                                      ),
+                                  ],
+                                ),
+                              )
+                            : p;
+                        if (pick != null && context.mounted) {
+                          Navigator.pop(context, pick);
+                        }
+                      },
                     ),
                   if ((_results ?? []).isEmpty && !_loading)
                     Padding(

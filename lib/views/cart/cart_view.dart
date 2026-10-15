@@ -108,7 +108,8 @@ class CartView extends StatelessWidget {
                                     tooltip: context.tr('remove'),
                                     icon: const Icon(Icons.delete_outline,
                                         color: Colors.red),
-                                    onPressed: () => state.removeFromCart(p.id),
+                                    onPressed: () =>
+                                        state.removeFromCart(p.cartKey),
                                   ),
                                   Text('Rs. ${money(p.finalPrice * l.qty)}',
                                       style: const TextStyle(

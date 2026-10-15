@@ -117,6 +117,34 @@ class _MarketViewState extends State<MarketView> {
                     child: Text(context.tr('view_all')),
                   ),
               ]),
+              // Sub-categories (e.g. Dairy → Milk, Yogurt, Eggs), with pictures.
+              if (c.subcategories.isNotEmpty)
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final sub in c.subcategories)
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 6),
+                          child: ActionChip(
+                            avatar: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: NetImage(sub.imageUrl,
+                                    fallbackEmoji: categoryEmoji(sub.name))),
+                            label: Text(sub.displayName(lang)),
+                            onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => ProductListView(
+                                        category: c,
+                                        initialSubcategoryId: sub.id))),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               if ((_byCategory[c.id] ?? []).isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),

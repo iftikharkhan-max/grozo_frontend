@@ -8,6 +8,7 @@ import '../../services/api.dart';
 import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../common/product_widgets.dart';
+import '../common/contact.dart';
 import 'change_request_view.dart';
 import 'my_orders_view.dart';
 import 'reorder.dart';
@@ -146,6 +147,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                   _riderCard(o),
                 _itemsCard(o),
                 _infoCard(o),
+                _helpCard(o),
               ]),
             ),
       bottomNavigationBar: o == null ? null : _actions(o),
@@ -196,6 +198,44 @@ class _OrderDetailViewState extends State<OrderDetailView> {
       ),
     );
   }
+
+  /// Spec 6: call or WhatsApp the store about this order (number included).
+  Widget _helpCard(Order o) => Card(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(context.tr('help_with_order'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => contactAboutOrder(context,
+                      orderNumber: o.number,
+                      branchPhone: o.branchPhone,
+                      whatsapp: false),
+                  icon: const Icon(Icons.call),
+                  label: Text(context.tr('call_us')),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF128C7E)),
+                  onPressed: () => contactAboutOrder(context,
+                      orderNumber: o.number,
+                      branchPhone: o.branchPhone,
+                      whatsapp: true),
+                  icon: const Icon(Icons.chat),
+                  label: Text(context.tr('whatsapp_us')),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      );
 
   /// Change request status, or why the order can no longer be cancelled/changed.
   Widget _changeCard(Order o) {
@@ -410,7 +450,9 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                 color: brandAccent),
           if (o.deliveryMethod == 'delivery')
             row(
-                context.tr('delivery_charge'),
+                o.deliveryKm == null
+                    ? context.tr('delivery_charge')
+                    : '${context.tr('delivery_charge')} (${o.deliveryKm!.toStringAsFixed(1)} km)',
                 o.deliveryCharge == null
                     ? context.tr('to_be_confirmed')
                     : 'Rs. ${money(o.deliveryCharge!)}'),

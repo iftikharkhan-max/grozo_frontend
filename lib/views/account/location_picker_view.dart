@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/strings.dart';
 import '../../services/api.dart';
+import '../../services/maps_config.dart';
 import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 
@@ -127,6 +129,10 @@ Future<double?> loadMaxDeliveryKm() async {
 
 class _LocationPickerViewState extends State<LocationPickerView> {
   final _map = MapController();
+
+  /// Google Maps when the build has a key; otherwise OpenStreetMap.
+  bool _google = false;
+  gm.GoogleMapController? _gmap;
   final _search = TextEditingController();
   late LatLng _center;
   double? _maxKm;
@@ -150,6 +156,9 @@ class _LocationPickerViewState extends State<LocationPickerView> {
       _center = lat != null && lng != null ? LatLng(lat, lng) : _fallback;
     }
     if (state.branches.isEmpty) state.loadBranches();
+    GoogleMapsConfig.available().then((ok) {
+      if (mounted && ok) setState(() => _google = true);
+    });
     loadMaxDeliveryKm().then((km) {
       if (mounted) setState(() => _maxKm = km);
     });
@@ -159,11 +168,17 @@ class _LocationPickerViewState extends State<LocationPickerView> {
   void dispose() {
     _search.dispose();
     _map.dispose();
+    _gmap?.dispose();
     super.dispose();
   }
 
   void _moveTo(LatLng p, {double zoom = 17}) {
-    _map.move(p, zoom);
+    if (_google) {
+      _gmap?.animateCamera(gm.CameraUpdate.newLatLngZoom(
+          gm.LatLng(p.latitude, p.longitude), zoom));
+    } else {
+      _map.move(p, zoom);
+    }
     setState(() => _center = p);
   }
 
@@ -274,56 +289,83 @@ class _LocationPickerViewState extends State<LocationPickerView> {
         ),
         Expanded(
           child: Stack(children: [
-            FlutterMap(
-              mapController: _map,
-              options: MapOptions(
-                initialCenter: _center,
-                initialZoom: widget.latitude != null ? 17 : 14,
-                onPositionChanged: (camera, _) =>
-                    setState(() => _center = camera.center),
-              ),
-              children: [
-                if (LocationPickerView.tileUrl != null)
-                  TileLayer(
-                    urlTemplate: LocationPickerView.tileUrl,
-                    userAgentPackageName: 'com.iftikhar.grozo',
-                  ),
-                MarkerLayer(markers: [
+            if (_google)
+              gm.GoogleMap(
+                initialCameraPosition: gm.CameraPosition(
+                    target: gm.LatLng(_center.latitude, _center.longitude),
+                    zoom: widget.latitude != null ? 17 : 14),
+                onMapCreated: (c) => _gmap = c,
+                onCameraMove: (pos) => setState(() => _center =
+                    LatLng(pos.target.latitude, pos.target.longitude)),
+                // Our own "my location" button and centre pin are used instead.
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                markers: {
                   for (final b in branches)
                     if (double.tryParse('${b['latitude']}') != null &&
                         double.tryParse('${b['longitude']}') != null)
-                      Marker(
-                        point: LatLng(double.parse('${b['latitude']}'),
+                      gm.Marker(
+                        markerId: gm.MarkerId('branch_${b['id']}'),
+                        position: gm.LatLng(double.parse('${b['latitude']}'),
                             double.parse('${b['longitude']}')),
-                        width: 34,
-                        height: 34,
-                        child: Tooltip(
-                          message: branchName(b),
-                          child: const CircleAvatar(
-                              backgroundColor: brandPrimary,
-                              child: Icon(Icons.storefront,
-                                  color: Colors.white, size: 18)),
-                        ),
+                        icon: gm.BitmapDescriptor.defaultMarkerWithHue(
+                            gm.BitmapDescriptor.hueGreen),
+                        infoWindow: gm.InfoWindow(title: branchName(b)),
                       ),
-                ]),
-                // Credit required by OpenStreetMap's tile terms.
-                Align(
-                  alignment: AlignmentDirectional.bottomStart,
-                  child: GestureDetector(
-                    onTap: () => launchUrl(
-                        Uri.parse('https://www.openstreetmap.org/copyright')),
-                    child: Container(
-                      margin: const EdgeInsets.all(6),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      color: Colors.white70,
-                      child: const Text('© OpenStreetMap',
-                          style: TextStyle(fontSize: 11)),
+                },
+              )
+            else
+              FlutterMap(
+                mapController: _map,
+                options: MapOptions(
+                  initialCenter: _center,
+                  initialZoom: widget.latitude != null ? 17 : 14,
+                  onPositionChanged: (camera, _) =>
+                      setState(() => _center = camera.center),
+                ),
+                children: [
+                  if (LocationPickerView.tileUrl != null)
+                    TileLayer(
+                      urlTemplate: LocationPickerView.tileUrl,
+                      userAgentPackageName: 'com.iftikhar.grozo',
+                    ),
+                  MarkerLayer(markers: [
+                    for (final b in branches)
+                      if (double.tryParse('${b['latitude']}') != null &&
+                          double.tryParse('${b['longitude']}') != null)
+                        Marker(
+                          point: LatLng(double.parse('${b['latitude']}'),
+                              double.parse('${b['longitude']}')),
+                          width: 34,
+                          height: 34,
+                          child: Tooltip(
+                            message: branchName(b),
+                            child: const CircleAvatar(
+                                backgroundColor: brandPrimary,
+                                child: Icon(Icons.storefront,
+                                    color: Colors.white, size: 18)),
+                          ),
+                        ),
+                  ]),
+                  // Credit required by OpenStreetMap's tile terms.
+                  Align(
+                    alignment: AlignmentDirectional.bottomStart,
+                    child: GestureDetector(
+                      onTap: () => launchUrl(
+                          Uri.parse('https://www.openstreetmap.org/copyright')),
+                      child: Container(
+                        margin: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        color: Colors.white70,
+                        child: const Text('© OpenStreetMap',
+                            style: TextStyle(fontSize: 11)),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             // The pin marks the middle of the map; its tip is the chosen point.
             const IgnorePointer(
               child: Center(

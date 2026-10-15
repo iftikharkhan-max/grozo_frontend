@@ -62,7 +62,8 @@ class _RiderDashboardState extends State<RiderDashboard> {
   void _loadManifest() async {
     final data = await OrderService.fetchOrdersByRole('rider', widget.user.id);
     if (!mounted) return;
-    setState(() => _activeAssignments = data);
+    // Newest delivery on top (older servers sent the oldest first).
+    setState(() => _activeAssignments = newestFirstAssigned(data));
     // Resume live location after the app was closed during a delivery.
     final inTransit =
         data.where((o) => o['status'] == 'In the way').firstOrNull;
@@ -320,3 +321,13 @@ class _RiderDashboardState extends State<RiderDashboard> {
     );
   }
 }
+
+/// Most recently assigned delivery first; falls back to order time.
+List<dynamic> newestFirstAssigned(List<dynamic> orders) =>
+    [...orders]..sort((a, b) {
+        DateTime? t(Map o) =>
+            DateTime.tryParse('${o['assigned_at'] ?? o['created_at']}');
+        final ta = t(a), tb = t(b);
+        if (ta != null && tb != null && ta != tb) return tb.compareTo(ta);
+        return ((b['id'] as num?) ?? 0).compareTo((a['id'] as num?) ?? 0);
+      });

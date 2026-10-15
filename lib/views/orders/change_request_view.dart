@@ -39,9 +39,9 @@ class _ChangeRequestViewState extends State<ChangeRequestView> {
   bool get _itemsChanged {
     final before = {
       for (final l in widget.order.items)
-        if (l.productId != null) l.productId!: l.qty
+        if (l.productId != null) '${l.productId}:${l.variantId ?? 0}': l.qty
     };
-    final after = {for (final l in _lines) l.productId: l.qty};
+    final after = {for (final l in _lines) l.key: l.qty};
     return before.length != after.length ||
         before.entries.any((e) => after[e.key] != e.value);
   }

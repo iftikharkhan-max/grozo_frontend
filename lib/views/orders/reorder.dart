@@ -26,14 +26,22 @@ Future<void> reorder(BuildContext context, Order o) async {
       missing.add(l.displayName(lang));
       continue;
     }
-    final p = Product.fromJson(Map<String, dynamic>.from(res.data));
+    final product = Product.fromJson(Map<String, dynamic>.from(res.data));
+    // The same size/weight as last time, if the product has variations.
+    final p = l.variantId == null && !product.hasVariants
+        ? product
+        : product.variants.where((v) => v.variantId == l.variantId).firstOrNull;
+    if (p == null) {
+      missing.add(l.displayName(lang));
+      continue;
+    }
     final qty = p.maxQty == null ? l.qty : l.qty.clamp(0, p.maxQty!);
     if (!p.available || qty == 0) {
       missing.add(p.displayName(lang));
       continue;
     }
     // Top the cart up to the ordered quantity (it may already hold some).
-    final toAdd = qty - state.qtyInCart(p.id);
+    final toAdd = qty - state.qtyInCart(p);
     if (toAdd > 0) state.addToCart(p, qty: toAdd);
     added++;
   }

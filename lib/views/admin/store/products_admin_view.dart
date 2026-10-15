@@ -4,6 +4,7 @@ import '../../../models/product.dart';
 import '../../../services/api.dart';
 import '../../common/product_widgets.dart';
 import 'admin_form.dart';
+import 'product_variants_admin.dart';
 
 /// All products (including unavailable ones) with search; tap to edit.
 class ProductsAdminView extends StatefulWidget {
@@ -266,6 +267,13 @@ class _ProductEditViewState extends State<ProductEditView> {
                 label: 'Discount ends on (optional)',
                 value: _discountEnds,
                 onChanged: (d) => setState(() => _discountEnds = d)),
+            adminSection('Sizes / weights'),
+            if (_isNew)
+              const Text(
+                  'Save the product first, then open it again to add sizes or weights.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54))
+            else
+              ProductVariationsSection(productId: p['id'] as int),
             adminSection('Stock'),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

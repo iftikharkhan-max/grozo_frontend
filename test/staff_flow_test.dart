@@ -223,6 +223,9 @@ void main() {
     expect(find.textContaining('Fresh Milk 1L'), findsOneWidget, reason: 'items of older orders (text quantities)');
     expect(find.textContaining('Tapal tea'), findsOneWidget, reason: 'extra market items to buy');
 
+    // Newest delivery is listed first, so scroll to this one's button.
+    await tester.ensureVisible(find.text('START TRANSIT'));
+    await settle(tester);
     await tester.tap(find.text('START TRANSIT'));
     await settle(tester);
     expect(tester.takeException(), isNull);
