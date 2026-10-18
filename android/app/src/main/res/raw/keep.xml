@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource shrinking must not remove the icon used by new-order
+     notifications (flutter_local_notifications looks it up by name). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/launcher_icon,@drawable/*" />

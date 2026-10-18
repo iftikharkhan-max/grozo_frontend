@@ -80,8 +80,14 @@ android {
             } else {
                 signingConfig = signingConfigs.getByName("debug")
             }
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8: removes unused code and renames classes (Play Console
+            // "Obfuscation"). The mapping file is put in the bundle for Play.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             manifestPlaceholders["appLabel"] = "Grozo"
         }
         debug {
