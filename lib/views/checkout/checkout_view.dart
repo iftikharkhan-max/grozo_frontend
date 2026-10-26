@@ -586,6 +586,42 @@ class _CheckoutViewState extends State<CheckoutView> {
     );
   }
 
+  Widget _loyaltyNote(Map l) {
+    final every = (l['every'] as num?)?.toInt() ?? 3;
+    final done = (l['done'] as num?)?.toInt() ?? 0;
+    final reward = l['reward'] == 'amount'
+        ? context
+            .trf('loyalty_amount_off', {'n': money((l['amount'] as num?) ?? 0)})
+        : context.tr('loyalty_free_delivery');
+    final applied = l['applied'] == true;
+    if (!applied && l['blocked_problematic'] == true) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+          color: applied ? brandGreenLight : brandYellowLight,
+          borderRadius: BorderRadius.circular(8)),
+      child: Row(children: [
+        Text(applied ? '🎁' : '⭐', style: const TextStyle(fontSize: 20)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+              applied
+                  ? context.trf('loyalty_applied', {'reward': reward})
+                  : context.trf('loyalty_progress', {
+                      'left': every - done,
+                      'reward': reward,
+                      'done': done,
+                      'every': every
+                    }),
+              style: const TextStyle(fontSize: 12.5)),
+        ),
+      ]),
+    );
+  }
+
   Widget _pinRow(Map<String, dynamic> a) {
     final pinned = a['latitude'] != null && a['longitude'] != null;
     return Row(children: [
@@ -659,6 +695,10 @@ class _CheckoutViewState extends State<CheckoutView> {
     final lang = context.lang;
     final lines = List<Map<String, dynamic>>.from(q['lines'] ?? []);
     final discount = (q['discount_total'] as num?) ?? 0;
+    // Loyalty deal: reward on this order, or progress towards the next one.
+    final loyalty = q['loyalty'] is Map ? q['loyalty'] as Map : null;
+    final loyaltyFree =
+        loyalty?['applied'] == true && loyalty?['reward'] == 'free_delivery';
     final delivery = q['delivery_charge'] as num?;
     // Until a branch is chosen the charge (and so the total) isn't known yet.
     final itemsOnly = _needsBranch;
@@ -727,12 +767,20 @@ class _CheckoutViewState extends State<CheckoutView> {
                 : '${context.tr('delivery_charge')} (${(q['delivery_distance_km'] as num).toStringAsFixed(1)} km)',
             itemsOnly
                 ? context.tr('after_branch')
-                : delivery == null
-                    ? context.tr('to_be_confirmed')
-                    : 'Rs. ${money(delivery)}'),
+                : loyaltyFree
+                    ? context.tr('free')
+                    : delivery == null
+                        ? context.tr('to_be_confirmed')
+                        : 'Rs. ${money(delivery)}'),
+        if (loyalty?['applied'] == true && loyalty?['reward'] == 'amount')
+          row('🎁 ${context.tr('loyalty_reward')}',
+              '− Rs. ${money((q['loyalty_discount'] as num?) ?? 0)}',
+              color: brandGreen),
         const Divider(),
         row(context.tr('total_payable'), 'Rs. ${money(total)}',
             bold: true, color: brandPrimary),
+        if (loyalty != null && loyalty['enabled'] == true)
+          _loyaltyNote(loyalty),
         if (_extraText.isNotEmpty || delivery == null)
           Padding(
             padding: const EdgeInsets.only(top: 6),

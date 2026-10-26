@@ -7,6 +7,7 @@ import '../../utils/validators.dart';
 import '../../utils/constants.dart';
 import '../../controllers/auth_service.dart';
 import 'store/store_admin_tab.dart';
+import '../staff/customer_standing.dart';
 import 'orders/admin_orders_tab.dart';
 import '../common/more_menu.dart';
 
@@ -261,6 +262,18 @@ class _AddUserViewState extends State<AddUserView> {
                   ),
                 ),
                 actions: [
+                  if (isCustomer)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => CustomerHistoryView(
+                                    customerId: (staff['id'] as num).toInt())));
+                      },
+                      child: const Text('History'),
+                    ),
                   if (isMe)
                     TextButton(
                         onPressed: () => Navigator.pop(context),

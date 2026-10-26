@@ -2,11 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/order.dart';
 import '../common/product_widgets.dart';
+import 'customer_standing.dart';
 
 /// Order details for managers and riders: who, where, what, and how much.
+/// Shows if the customer has caused problems before, and – with [canReport] –
+/// "Report problem" (and "Customer history" for managers).
 class StaffOrderInfo extends StatelessWidget {
   final Map<String, dynamic> raw;
-  const StaffOrderInfo(this.raw, {super.key});
+  final bool canReport;
+  final bool canViewHistory;
+  final VoidCallback? onChanged;
+  const StaffOrderInfo(this.raw,
+      {super.key,
+      this.canReport = false,
+      this.canViewHistory = false,
+      this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +43,7 @@ class StaffOrderInfo extends StatelessWidget {
         ),
       _line(Icons.person_outline,
           '${o.contactName ?? raw['customer_name'] ?? 'Customer'}'),
+      CustomerStandingBadge(raw),
       if (phone.isNotEmpty)
         InkWell(
           onTap: () => launchUrl(Uri(scheme: 'tel', path: phone)),
@@ -94,6 +105,12 @@ class StaffOrderInfo extends StatelessWidget {
             : 'Collect (COD): Rs. ${money(o.amount)}',
         style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
       ),
+      if (raw['loyalty_reward'] == 1 || raw['loyalty_reward'] == true)
+        const Text('🎁 Loyalty reward applied to this order',
+            style: TextStyle(fontSize: 12, color: Colors.green)),
+      if (canReport || canViewHistory)
+        StaffCustomerActions(raw,
+            canViewHistory: canViewHistory, onChanged: onChanged),
     ]);
   }
 

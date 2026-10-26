@@ -5,6 +5,7 @@ import '../../services/staff_alerts.dart';
 import '../../controllers/order_service.dart';
 import '../common/more_menu.dart';
 import '../staff/order_info.dart';
+import '../staff/customer_standing.dart';
 import 'edit_order_view.dart';
 import 'phone_order_view.dart';
 
@@ -212,6 +213,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis),
                                   changeRequestedChip(o),
+                                  CustomerStandingBadge(o),
                                 ]),
                             childrenPadding:
                                 const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -224,7 +226,10 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                               child: const Text('Claim'),
                             ),
                             children: [
-                              StaffOrderInfo(Map<String, dynamic>.from(o))
+                              StaffOrderInfo(Map<String, dynamic>.from(o),
+                                  canReport: true,
+                                  canViewHistory: true,
+                                  onChanged: _refreshAll)
                             ],
                           ),
                         );
@@ -269,7 +274,10 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                                 ),
                                 changeRequestedChip(o),
                                 const Divider(),
-                                StaffOrderInfo(Map<String, dynamic>.from(o)),
+                                StaffOrderInfo(Map<String, dynamic>.from(o),
+                                    canReport: true,
+                                    canViewHistory: true,
+                                    onChanged: _refreshAll),
                                 if (o['rider_name'] != null &&
                                     o['rider_name'] != 'Unassigned')
                                   Padding(

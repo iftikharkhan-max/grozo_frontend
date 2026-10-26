@@ -184,7 +184,8 @@ class _RiderDashboardState extends State<RiderDashboard> {
                                   ],
                                 ),
                                 const Divider(height: 24),
-                                StaffOrderInfo(Map<String, dynamic>.from(o)),
+                                StaffOrderInfo(Map<String, dynamic>.from(o),
+                                    canReport: true, onChanged: _loadManifest),
                                 const SizedBox(height: 16),
                                 if (o['status'] == 'Dispatched')
                                   SizedBox(

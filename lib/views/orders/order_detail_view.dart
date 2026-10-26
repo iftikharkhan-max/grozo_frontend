@@ -448,6 +448,13 @@ class _OrderDetailViewState extends State<OrderDetailView> {
           if ((o.discountTotal ?? 0) > 0)
             row(context.tr('discount'), '− Rs. ${money(o.discountTotal!)}',
                 color: brandAccent),
+          if (o.loyaltyReward)
+            row(
+                '🎁 ${context.tr('loyalty_reward')}',
+                (o.loyaltyDiscount ?? 0) > 0
+                    ? '− Rs. ${money(o.loyaltyDiscount!)}'
+                    : context.tr('loyalty_free_delivery'),
+                color: brandGreen),
           if (o.deliveryMethod == 'delivery')
             row(
                 o.deliveryKm == null

@@ -77,6 +77,10 @@ class Order {
 
   /// Distance (km) from the branch to the delivery pin that set the charge.
   final double? deliveryKm;
+
+  /// The loyalty reward (free delivery / amount off) was used on this order.
+  final bool loyaltyReward;
+  final double? loyaltyDiscount;
   final String paymentMethod;
   final String deliveryMethod;
   final String? destination;
@@ -121,6 +125,8 @@ class Order {
         discountTotal = _dn(j['discount_total']),
         deliveryCharge = _dn(j['delivery_charge']),
         deliveryKm = _dn(j['delivery_distance_km']),
+        loyaltyReward = _in(j['loyalty_reward']) == 1 || j['loyalty_reward'] == true,
+        loyaltyDiscount = _dn(j['loyalty_discount']),
         paymentMethod = (j['payment_method'] ?? 'COD').toString(),
         deliveryMethod = (j['delivery_method'] ?? 'delivery').toString(),
         destination = j['destination']?.toString(),

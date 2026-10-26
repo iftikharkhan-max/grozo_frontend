@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../staff/customer_standing.dart';
 import '../../models/product.dart';
 import '../../services/api.dart';
 import '../common/product_widgets.dart';
@@ -86,7 +87,17 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
     });
   }
 
+  /// Loyalty status of the picked caller (reward due on this order?).
+  Map<String, dynamic>? _loyalty;
+
   void _pickCustomer(Map<String, dynamic> c) {
+    _loyalty = null;
+    Api.get('/staff/customers/${c['id']}/history').then((res) {
+      if (mounted && res.ok && _customer?['id'] == c['id']) {
+        setState(() =>
+            _loyalty = Map<String, dynamic>.from(res.data['loyalty'] ?? {}));
+      }
+    });
     setState(() {
       _customer = c;
       _results = [];
@@ -264,11 +275,21 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
           for (final c in _results)
             ListTile(
               dense: true,
-              leading: const Icon(Icons.person),
+              leading: Icon(Icons.person,
+                  color: customerProblematic(c) ? Colors.red.shade700 : null),
               title: Text('${c['name']}'),
-              subtitle: Text([c['mobile'], c['last_address']]
-                  .where((x) => (x ?? '').toString().isNotEmpty)
-                  .join(' • ')),
+              subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text([
+                      c['mobile'],
+                      '${c['order_count'] ?? 0} orders',
+                      c['last_address']
+                    ]
+                        .where((x) => (x ?? '').toString().isNotEmpty)
+                        .join(' • ')),
+                    CustomerStandingBadge(c),
+                  ]),
               onTap: () => _pickCustomer(c),
             ),
           const Padding(
@@ -277,15 +298,54 @@ class _PhoneOrderViewState extends State<PhoneOrderView> {
                   style: TextStyle(color: Colors.black54))),
         ] else
           Card(
-            color: Colors.green.shade50,
-            child: ListTile(
-              leading: const Icon(Icons.verified_user, color: Colors.green),
-              title: Text('${_customer!['name']}'),
-              subtitle: Text('${_customer!['mobile'] ?? ''}'),
-              trailing: TextButton(
-                  onPressed: () => setState(() => _customer = null),
-                  child: const Text('Change')),
-            ),
+            color: customerProblematic(_customer!)
+                ? Colors.red.shade50
+                : Colors.green.shade50,
+            child: Column(children: [
+              ListTile(
+                leading: Icon(
+                    customerProblematic(_customer!)
+                        ? Icons.warning_amber
+                        : Icons.verified_user,
+                    color: customerProblematic(_customer!)
+                        ? Colors.red.shade700
+                        : Colors.green),
+                title: Text('${_customer!['name']}'),
+                subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${_customer!['mobile'] ?? ''}'),
+                      CustomerStandingBadge(_customer!),
+                      if (_loyalty?['eligible'] == true)
+                        Text(
+                            _loyalty!['reward'] == 'amount'
+                                ? '🎁 Loyalty reward due: Rs. ${_loyalty!['amount']} off (applied automatically)'
+                                : '🎁 Loyalty reward due: free delivery (applied automatically)',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade800)),
+                    ]),
+                trailing: TextButton(
+                    onPressed: () => setState(() {
+                          _customer = null;
+                          _loyalty = null;
+                        }),
+                    child: const Text('Change')),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => CustomerHistoryView(
+                              customerId: (_customer!['id'] as num).toInt()))),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('View order history and problems'),
+                ),
+              ),
+            ]),
           ),
         TextField(
             controller: _name,
