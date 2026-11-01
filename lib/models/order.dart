@@ -81,6 +81,11 @@ class Order {
   /// The loyalty reward (free delivery / amount off) was used on this order.
   final bool loyaltyReward;
   final double? loyaltyDiscount;
+
+  /// A partner's order (e.g. Faridullah Fish): the rider collects it there.
+  final int? partnerId;
+  final String? partnerName;
+  final String? partnerNameUr;
   final String paymentMethod;
   final String deliveryMethod;
   final String? destination;
@@ -125,8 +130,12 @@ class Order {
         discountTotal = _dn(j['discount_total']),
         deliveryCharge = _dn(j['delivery_charge']),
         deliveryKm = _dn(j['delivery_distance_km']),
-        loyaltyReward = _in(j['loyalty_reward']) == 1 || j['loyalty_reward'] == true,
+        loyaltyReward =
+            _in(j['loyalty_reward']) == 1 || j['loyalty_reward'] == true,
         loyaltyDiscount = _dn(j['loyalty_discount']),
+        partnerId = _in(j['partner_id']),
+        partnerName = j['partner_name']?.toString(),
+        partnerNameUr = j['partner_name_ur']?.toString(),
         paymentMethod = (j['payment_method'] ?? 'COD').toString(),
         deliveryMethod = (j['delivery_method'] ?? 'delivery').toString(),
         destination = j['destination']?.toString(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/api.dart';
+import '../../staff/customer_standing.dart';
 import 'admin_form.dart';
 
 /// Admin: the loyalty deal ("every N completed orders, the next one has free
@@ -16,6 +17,8 @@ class _CustomerRulesAdminViewState extends State<CustomerRulesAdminView> {
   final _every = TextEditingController();
   final _amount = TextEditingController();
   final _threshold = TextEditingController();
+  final _blacklistAt = TextEditingController();
+  final _regularAfter = TextEditingController();
   bool _enabled = false;
   String _reward = 'free_delivery';
   bool _loaded = false;
@@ -40,6 +43,8 @@ class _CustomerRulesAdminViewState extends State<CustomerRulesAdminView> {
         _reward = d['loyalty_reward'] == 'amount' ? 'amount' : 'free_delivery';
         _amount.text = numText(d['loyalty_amount']);
         _threshold.text = '${d['problem_threshold'] ?? 2}';
+        _blacklistAt.text = '${d['blacklist_threshold'] ?? 3}';
+        _regularAfter.text = '${d['regular_after'] ?? 3}';
         _loaded = true;
       });
     });
@@ -50,6 +55,8 @@ class _CustomerRulesAdminViewState extends State<CustomerRulesAdminView> {
     _every.dispose();
     _amount.dispose();
     _threshold.dispose();
+    _blacklistAt.dispose();
+    _regularAfter.dispose();
     super.dispose();
   }
 
@@ -62,6 +69,8 @@ class _CustomerRulesAdminViewState extends State<CustomerRulesAdminView> {
       'loyalty_reward': _reward,
       'loyalty_amount': _reward == 'amount' ? _amount.text.trim() : '0',
       'problem_threshold': _threshold.text.trim(),
+      'blacklist_threshold': _blacklistAt.text.trim(),
+      'regular_after': _regularAfter.text.trim(),
     });
     if (!mounted) return;
     setState(() => _busy = false);
@@ -80,7 +89,7 @@ class _CustomerRulesAdminViewState extends State<CustomerRulesAdminView> {
         ? 'Rs. ${_amount.text.trim().isEmpty ? '…' : _amount.text.trim()} off'
         : 'free delivery';
     return Scaffold(
-      appBar: adminAppBar('Loyalty deal & problem customers'),
+      appBar: adminAppBar('Customers: loyalty, problems, blacklist'),
       bottomNavigationBar: AdminSaveButton(busy: _busy, onPressed: _save),
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
@@ -141,6 +150,32 @@ class _CustomerRulesAdminViewState extends State<CustomerRulesAdminView> {
                     required: true,
                     decimal: false,
                     hint: 'e.g. 2 – managers can also mark a customer by hand'),
+                adminSection('Blacklist'),
+                const Text(
+                    'A blacklisted customer can\'t order in the app (they are '
+                    'asked to call the branch); managers can still take their '
+                    'order on the phone. Managers and admins can blacklist a '
+                    'customer by hand (e.g. fraud) and remove them once the '
+                    'matter is resolved – a reason is always recorded.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54)),
+                const SizedBox(height: 8),
+                adminNumber(_blacklistAt, 'Problems before blacklisting',
+                    required: true,
+                    decimal: false,
+                    hint:
+                        'e.g. 3 (did not take the order 3 times); 0 = never automatically'),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const BlacklistView())),
+                  icon: const Icon(Icons.block),
+                  label: const Text('View blacklisted customers'),
+                ),
+                const SizedBox(height: 8),
+                adminSection('Regular customers'),
+                adminNumber(_regularAfter, 'Delivered orders for "Regular"',
+                    required: true,
+                    decimal: false,
+                    hint: 'Staff see ★ Regular / 🆕 New on each order'),
               ]),
             ),
     );

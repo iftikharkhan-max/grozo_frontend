@@ -189,7 +189,9 @@ class _EditOrderViewState extends State<EditOrderView> {
               _card(
                   'Products',
                   OrderItemsEditor(
-                      lines: _lines, onChanged: () => setState(() {}))),
+                      lines: _lines,
+                      partnerId: o.partnerId,
+                      onChanged: () => setState(() {}))),
               _card(
                 'Extra items (priced at delivery)',
                 TextField(

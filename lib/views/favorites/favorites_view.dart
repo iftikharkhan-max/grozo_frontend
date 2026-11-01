@@ -46,9 +46,7 @@ class _FavoritesViewState extends State<FavoritesView> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-          title: Text(context.tr('favorites')),
-          automaticallyImplyLeading: false),
+      appBar: AppBar(title: Text(context.tr('favorites'))),
       body: _body(),
     );
   }

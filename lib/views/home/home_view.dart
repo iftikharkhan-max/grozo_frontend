@@ -5,6 +5,7 @@ import '../../models/product.dart';
 import '../../services/api.dart';
 import '../../utils/brand.dart';
 import '../catalog/market_view.dart';
+import '../partners/partner_view.dart';
 import '../catalog/product_list_view.dart';
 import '../common/product_widgets.dart';
 import '../shell/main_shell.dart';
@@ -14,7 +15,7 @@ class HomeData {
   final List<Map<String, dynamic>> banners;
   final List<Category> featured;
   final List<Category> market;
-  final List<Product> discounted;
+  final List<Partner> partners;
   final List<Map<String, dynamic>> deliveryCharges;
 
   HomeData.fromJson(Map<String, dynamic> j)
@@ -25,8 +26,8 @@ class HomeData {
         market = (j['market_categories'] as List? ?? [])
             .map((c) => Category.fromJson(c))
             .toList(),
-        discounted = (j['discounted_products'] as List? ?? [])
-            .map((p) => Product.fromJson(p))
+        partners = (j['partners'] as List? ?? [])
+            .map((p) => Partner.fromJson(Map<String, dynamic>.from(p)))
             .toList(),
         deliveryCharges =
             List<Map<String, dynamic>>.from(j['delivery_charges'] ?? []);
@@ -96,113 +97,285 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
   void _openCategory(Category c) => Navigator.push(
       context, MaterialPageRoute(builder: (_) => ProductListView(category: c)));
 
+  /// Pull-to-refresh needs something scrollable even while loading.
+  Widget _fill(Widget child) => LayoutBuilder(
+        builder: (context, box) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(height: box.maxHeight, child: Center(child: child)),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
-    // The whole home page fits one screen: sections share the available height
-    // instead of scrolling. The scroll view is only there for pull-to-refresh.
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: _load,
-        // Exactly one screen tall: nothing to scroll, but pull-to-refresh works.
-        child: LayoutBuilder(
-          builder: (context, viewport) => SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: SizedBox(
-              height: viewport.maxHeight,
-              child: Column(children: [
-                const _SearchBar(),
-                Expanded(
-                  child: _loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _data == null
-                          ? _ErrorState(
-                              errorCode: _errorCode,
-                              onRetry: () {
-                                setState(() => _loading = true);
-                                _load();
-                              })
-                          : LayoutBuilder(
-                              builder: (context, box) => _sections(
-                                  _data!, box.maxHeight, box.maxWidth)),
-                ),
-              ]),
-            ),
+      backgroundColor: const Color(0xFFF7F9F6),
+      body: Column(children: [
+        const _SearchBar(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: _loading
+                ? _fill(const CircularProgressIndicator())
+                : _data == null
+                    ? _fill(_ErrorState(
+                        errorCode: _errorCode,
+                        onRetry: () {
+                          setState(() => _loading = true);
+                          _load();
+                        }))
+                    : _sections(_data!),
           ),
         ),
-      ),
+      ]),
     );
   }
 
   /// Banner slides are 3 : 1 (width : height) – the shape to design
-  /// banners in (e.g. 1200 x 400 px). Market Shopping gets the rest of the
-  /// screen. Short phones shrink the banner only as much as needed to keep
-  /// Market Shopping at least [_minMarket] tall.
+  /// banners in (e.g. 1200 x 400 px).
   static const bannerRatio = 3.0;
-  static const _minMarket = 150.0;
 
-  Widget _sections(HomeData d, double height, double width) {
-    // Short phones drop the optional extras so the essentials keep their size.
-    final compact = height < 520;
-    final gapH = compact ? 6.0 : 8.0;
-    final gap = SizedBox(height: gapH);
-    const padTop = 8.0, padBottom = 6.0, dots = 11.0, orderNowClearance = 24.0;
-    final featuredH = d.featured.isEmpty ? 0.0 : (compact ? 62.0 : 74.0);
-    final dealsH =
-        d.discounted.isEmpty ? 0.0 : (height * 0.2).clamp(100.0, 110.0);
-    final gaps = gapH *
-        (1 + (d.featured.isEmpty ? 0 : 1) + (d.discounted.isEmpty ? 0 : 1));
-    final fixed = padTop +
-        padBottom +
-        dots +
-        featuredH +
-        dealsH +
-        gaps +
-        orderNowClearance;
-    final fullBanner = (width - 24) / bannerRatio;
-    final bannerH = (height - fixed - _minMarket).clamp(40.0, fullBanner);
+  /// Categories shown on the home page; "View all" lists the rest.
+  static const homeCategories = 6;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, padTop, 12, padBottom),
-      child: Column(children: [
-        SizedBox(
-          height: bannerH + dots,
-          child: _PromoCarousel(
-              banners: d.banners,
-              tiers: d.deliveryCharges,
-              onCategory: (id) {
-                // A banner may link to a main category or a sub-category.
-                final main = [...d.featured, ...d.market];
-                final c = [...main, for (final m in main) ...m.subcategories]
-                    .where((c) => c.id == id)
-                    .firstOrNull;
-                if (c != null) _openCategory(c);
-              }),
-        ),
-        gap,
-        if (d.featured.isNotEmpty) ...[
-          SizedBox(
-            height: featuredH,
-            child: _FeaturedRow(categories: d.featured, onTap: _openCategory),
+  /// Layout (as in the design the customer sent): banner, Explore
+  /// Categories (two columns), "Item not in the list", and Order from our
+  /// partners (it replaced Deals & Discounts).
+  Widget _sections(HomeData d) {
+    final categories = [...d.featured, ...d.market];
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      // The page ends clear of the round Order Now button above the footer.
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 96),
+      children: [
+        LayoutBuilder(
+          builder: (context, box) => SizedBox(
+            height: box.maxWidth / bannerRatio + 11,
+            child: _PromoCarousel(
+                banners: d.banners,
+                tiers: d.deliveryCharges,
+                onCategory: (id) {
+                  // A banner may link to a main category or a sub-category.
+                  final c = [
+                    ...categories,
+                    for (final m in categories) ...m.subcategories
+                  ].where((c) => c.id == id).firstOrNull;
+                  if (c != null) _openCategory(c);
+                }),
           ),
-          gap,
-        ],
-        // Market Shopping takes all the remaining space (it replaced the old
-        // "Quality products / Fresh / Delivery / Cash on delivery" row too).
-        Expanded(
-          child: _MarketShopping(
-              categories: d.market, onTap: _openCategory, compact: compact),
         ),
-        if (d.discounted.isNotEmpty) ...[
-          gap,
-          SizedBox(height: dealsH, child: _DealsStrip(products: d.discounted)),
+        _SectionTitle(
+          title: context.tr('explore_categories'),
+          onViewAll: categories.length > homeCategories
+              ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          AllCategoriesView(categories: categories)))
+              : null,
+        ),
+        CategoryGrid(
+            categories: categories.take(homeCategories).toList(),
+            onTap: _openCategory),
+        const SizedBox(height: 10),
+        const _NotInListCard(),
+        if (d.partners.isNotEmpty) ...[
+          _SectionTitle(
+            title: context.tr('order_from_partners'),
+            onViewAll: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => PartnersView(partners: d.partners))),
+          ),
+          SizedBox(
+            height: 196,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: d.partners.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) =>
+                  SizedBox(width: 156, child: PartnerCard(d.partners[i])),
+            ),
+          ),
         ],
-        // The page ends with the deals row: keep it clear of the round
-        // Order Now button, which rises above the footer.
-        const SizedBox(height: orderNowClearance),
-      ]),
+      ],
     );
   }
+}
+
+/// "Explore Categories                View All"
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final VoidCallback? onViewAll;
+  const _SectionTitle({required this.title, this.onViewAll});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 16, bottom: 10),
+        child: Row(children: [
+          Expanded(
+            child: Text(title,
+                style: const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    color: brandPrimary)),
+          ),
+          if (onViewAll != null)
+            InkWell(
+              onTap: onViewAll,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Text(context.tr('view_all'),
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: brandGreen)),
+              ),
+            ),
+        ]),
+      );
+}
+
+/// Two columns of category cards: picture, name, arrow.
+class CategoryGrid extends StatelessWidget {
+  final List<Category> categories;
+  final ValueChanged<Category> onTap;
+  const CategoryGrid(
+      {super.key, required this.categories, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < categories.length; i += 2) {
+      rows.add(Padding(
+        padding: EdgeInsets.only(top: i == 0 ? 0 : 10),
+        child: IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: _CategoryCard(categories[i], onTap: onTap)),
+            const SizedBox(width: 10),
+            Expanded(
+                child: i + 1 < categories.length
+                    ? _CategoryCard(categories[i + 1], onTap: onTap)
+                    : const SizedBox.shrink()),
+          ]),
+        ),
+      ));
+    }
+    return Column(children: rows);
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  final Category category;
+  final ValueChanged<Category> onTap;
+  const _CategoryCard(this.category, {required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE3E7E3))),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => onTap(category),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+          child: Row(children: [
+            SizedBox(
+              width: 58,
+              height: 58,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: NetImage(category.imageUrl,
+                    fallbackEmoji: categoryEmoji(category.name)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(category.displayName(context.lang),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                      color: brandPrimary)),
+            ),
+            Icon(Icons.chevron_right,
+                color: Colors.black45,
+                textDirection: Directionality.of(context)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Item not in the list? Add it" – anything we should buy from the market.
+class _NotInListCard extends StatelessWidget {
+  const _NotInListCard();
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: brandYellowLight,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: brandAccent, width: 1.2)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => showAddCustomItem(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(children: [
+              const Icon(Icons.add_shopping_cart, color: brandAccent, size: 30),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(context.tr('not_in_list'),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: brandPrimary)),
+                      Text(context.tr('market_shopping_sub'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11.5, color: Colors.black87)),
+                    ]),
+              ),
+              Icon(Icons.chevron_right,
+                  color: brandAccent,
+                  textDirection: Directionality.of(context)),
+            ]),
+          ),
+        ),
+      );
+}
+
+/// "View all" categories.
+class AllCategoriesView extends StatelessWidget {
+  final List<Category> categories;
+  const AllCategoriesView({super.key, required this.categories});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: Text(context.tr('explore_categories'))),
+        body: ListView(padding: const EdgeInsets.all(14), children: [
+          CategoryGrid(
+            categories: categories,
+            onTap: (c) => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ProductListView(category: c))),
+          ),
+          const SizedBox(height: 10),
+          const _NotInListCard(),
+          const SizedBox(height: 80),
+        ]),
+      );
 }
 
 class _SearchBar extends StatelessWidget {
@@ -597,249 +770,7 @@ class _BannerCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------- Categories
-
-/// Every active featured category. Two share the width as in the design; with
-/// more, the row scrolls sideways (the next card peeks in) so none is left out.
-class _FeaturedRow extends StatelessWidget {
-  final List<Category> categories;
-  final ValueChanged<Category> onTap;
-  const _FeaturedRow({required this.categories, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    Widget card(int i) => _FeaturedCategoryCard(
-        category: categories[i],
-        yellow: i.isOdd,
-        onTap: () => onTap(categories[i]));
-
-    if (categories.length <= 2) {
-      return Row(children: [
-        for (var i = 0; i < categories.length; i++) ...[
-          if (i > 0) const SizedBox(width: 10),
-          Expanded(child: card(i)),
-        ],
-      ]);
-    }
-    return LayoutBuilder(
-      builder: (context, box) => ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) =>
-            SizedBox(width: (box.maxWidth - 10) / 2.2, child: card(i)),
-      ),
-    );
-  }
-}
-
-class _FeaturedCategoryCard extends StatelessWidget {
-  final Category category;
-  final bool yellow;
-  final VoidCallback onTap;
-  const _FeaturedCategoryCard(
-      {required this.category, required this.yellow, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final lang = context.lang;
-    final other = lang == 'ur'
-        ? category.name
-        : category.nameUr; // design shows both languages
-    return Material(
-      color: yellow ? brandYellowLight : brandGreenLight,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          height: double.infinity,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color:
-                    (yellow ? brandYellow : brandGreen).withValues(alpha: 0.5)),
-          ),
-          child: Row(children: [
-            SizedBox(
-              width: 52,
-              height: 52,
-              child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: NetImage(category.imageUrl,
-                      fallbackEmoji: categoryEmoji(category.name))),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              // Scales the three text lines down slightly on small phones.
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(category.displayName(lang),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: brandPrimary)),
-                      if ((other ?? '').isNotEmpty)
-                        Text(other!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 12.5, color: brandPrimary)),
-                      if (category.displaySubtitle(lang) != null)
-                        Text(category.displaySubtitle(lang)!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: yellow ? brandAccent : brandGreen)),
-                    ]),
-              ),
-            ),
-            Icon(Icons.chevron_right,
-                color: yellow ? brandAccent : brandGreen,
-                textDirection: Directionality.of(context)),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-class _MarketShopping extends StatelessWidget {
-  final List<Category> categories;
-  final ValueChanged<Category> onTap;
-  final bool compact;
-  const _MarketShopping(
-      {required this.categories, required this.onTap, this.compact = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final lang = context.lang;
-    return _Panel(
-      color: const Color(0xFFF1FAF7),
-      borderColor: const Color(0xFFB9E4D3),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        InkWell(
-          onTap: () => Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const MarketView())),
-          child: Row(children: [
-            const Icon(Icons.storefront, color: brandPrimary, size: 24),
-            const SizedBox(width: 6),
-            // Long (e.g. Urdu) titles shrink a little rather than overflow.
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(context.tr('market_shopping'),
-                    maxLines: 1,
-                    style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: brandPrimary)),
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (!compact)
-              Expanded(
-                child: Text(context.tr('market_shopping_sub'),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        const TextStyle(fontSize: 11, color: Colors.black87)),
-              ),
-          ]),
-        ),
-        const SizedBox(height: 6),
-        // Tiles take whatever height is left in the panel.
-        Expanded(
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: categories.length + 1,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (ctx, i) {
-              // "Item not in the list" comes first so it is always visible.
-              if (i == 0) {
-                return _Tile(
-                  label: context.tr('not_in_list'),
-                  highlight: true,
-                  onTap: () => showAddCustomItem(context),
-                  child: const Icon(Icons.add_shopping_cart,
-                      color: brandAccent, size: 34),
-                );
-              }
-              final c = categories[i - 1];
-              return _Tile(
-                label: c.displayName(lang),
-                onTap: () => onTap(c),
-                child: NetImage(c.imageUrl,
-                    fit: BoxFit.contain, fallbackEmoji: categoryEmoji(c.name)),
-              );
-            },
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _Tile extends StatelessWidget {
-  final String label;
-  final Widget child;
-  final VoidCallback onTap;
-
-  /// Stands out (yellow, orange border) – used for "Item not in the list".
-  final bool highlight;
-  const _Tile(
-      {required this.label,
-      required this.child,
-      required this.onTap,
-      this.highlight = false});
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: highlight ? brandYellowLight : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: highlight
-              ? const BorderSide(color: brandAccent, width: 1.5)
-              : BorderSide.none,
-        ),
-        elevation: 0.5,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: SizedBox(
-            width: 84,
-            child: LayoutBuilder(
-              builder: (context, box) => Padding(
-                padding: const EdgeInsets.all(6),
-                child: Column(children: [
-                  Expanded(child: Center(child: child)),
-                  Text(label,
-                      // Short tiles (small phones) keep the label to one line.
-                      maxLines: box.maxHeight < 72 ? 1 : 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w600)),
-                ]),
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
-/// Delivery charges chart (opened from Market Shopping).
+/// Delivery charges chart.
 void showDeliveryCharges(
     BuildContext context, List<Map<String, dynamic>> tiers) {
   String num(dynamic v) {
@@ -891,120 +822,6 @@ void showDeliveryCharges(
       ],
     ),
   );
-}
-
-class _DealsStrip extends StatelessWidget {
-  final List<Product> products;
-  const _DealsStrip({required this.products});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      color: const Color(0xFFFFF1E6),
-      borderColor: brandAccent.withValues(alpha: 0.35),
-      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.local_offer, color: brandAccent, size: 16),
-          const SizedBox(width: 6),
-          Text(context.tr('deals_discounts'),
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: brandPrimary)),
-        ]),
-        const SizedBox(height: 4),
-        Expanded(
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 6),
-            itemBuilder: (ctx, i) => _DealCard(products[i]),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-/// Short, wide deal card for the compact strip: photo, name, price, add.
-class _DealCard extends StatelessWidget {
-  final Product product;
-  const _DealCard(this.product);
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 256,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () => openProduct(context, product),
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: Row(children: [
-              AspectRatio(
-                aspectRatio: 1,
-                child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: NetImage(product.imageUrl,
-                        fallbackEmoji: categoryEmoji(product.name))),
-              ),
-              const SizedBox(width: 8),
-              // Name on its own line; price and Add share the line below.
-              Expanded(
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(product.displayName(context.lang),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Row(children: [
-                        Expanded(
-                          child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: AlignmentDirectional.centerStart,
-                              child: PriceText(product, fontSize: 13)),
-                        ),
-                        const SizedBox(width: 4),
-                        SizedBox(width: 76, child: AddToCartControl(product)),
-                      ]),
-                    ]),
-              ),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  final Widget child;
-  final Color color;
-  final Color borderColor;
-  final EdgeInsets padding;
-  const _Panel(
-      {required this.child,
-      required this.color,
-      required this.borderColor,
-      this.padding = const EdgeInsets.all(12)});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: padding,
-        decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor)),
-        child: child,
-      );
 }
 
 class _ErrorState extends StatelessWidget {

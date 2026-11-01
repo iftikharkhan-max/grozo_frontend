@@ -64,12 +64,20 @@ class EditLine {
 class OrderItemsEditor extends StatelessWidget {
   final List<EditLine> lines;
   final VoidCallback onChanged;
+
+  /// A partner's order only takes that partner's items.
+  final int? partnerId;
   const OrderItemsEditor(
-      {super.key, required this.lines, required this.onChanged});
+      {super.key,
+      required this.lines,
+      required this.onChanged,
+      this.partnerId});
 
   Future<void> _add(BuildContext context) async {
     final p = await Navigator.push<Product>(
-        context, MaterialPageRoute(builder: (_) => const ProductPickerView()));
+        context,
+        MaterialPageRoute(
+            builder: (_) => ProductPickerView(partnerId: partnerId)));
     if (p == null) return;
     final existing = lines
         .where((l) => l.productId == p.id && l.variantId == p.variantId)
@@ -156,7 +164,8 @@ class OrderItemsEditor extends StatelessWidget {
 
 /// Search the catalogue and pick one product.
 class ProductPickerView extends StatefulWidget {
-  const ProductPickerView({super.key});
+  final int? partnerId;
+  const ProductPickerView({super.key, this.partnerId});
 
   @override
   State<ProductPickerView> createState() => _ProductPickerViewState();
@@ -182,8 +191,10 @@ class _ProductPickerViewState extends State<ProductPickerView> {
   Future<void> _run() async {
     setState(() => _loading = true);
     final text = _search.text.trim();
-    final res =
-        await Api.get('/products', query: text.isEmpty ? null : {'q': text});
+    final res = await Api.get('/products', query: {
+      if (text.isNotEmpty) 'q': text,
+      if (widget.partnerId != null) 'partner': '${widget.partnerId}',
+    });
     if (!mounted) return;
     setState(() {
       _loading = false;

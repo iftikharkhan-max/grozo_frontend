@@ -5,6 +5,7 @@ import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../common/login_required.dart';
 import '../common/more_menu.dart';
+import '../favorites/favorites_view.dart';
 import '../info/branch_view.dart';
 import '../info/help_view.dart';
 import '../info/info_page.dart';
@@ -100,7 +101,7 @@ class AccountView extends StatelessWidget {
             tile(Icons.receipt_long_outlined, context.tr('my_orders'),
                 () => MainShell.switchTab(context, MainShell.orders)),
             tile(Icons.favorite_border, context.tr('favorites'),
-                () => MainShell.switchTab(context, MainShell.favorites)),
+                () => go(const FavoritesView())),
             tile(Icons.notifications_none, context.tr('notifications'),
                 () => go(const NotificationsView())),
             tile(Icons.tune, context.tr('notification_settings'),

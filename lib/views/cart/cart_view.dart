@@ -13,14 +13,62 @@ import '../shell/main_shell.dart';
 
 /// Cart with quantity controls. The total shown here is an estimate from the
 /// last known prices; checkout gets the confirmed total from the server.
+/// Groceries and each partner's items are separate orders: with more than
+/// one, the cart shows them under their own headings and checkout asks which
+/// order to place.
 class CartView extends StatelessWidget {
   const CartView({super.key});
+
+  /// Opens checkout for one group of the cart (null = groceries).
+  static Future<void> checkout(BuildContext context) async {
+    final state = context.read<AppState>();
+    if (!state.isLoggedIn && !await openLogin(context)) return;
+    if (!context.mounted) return;
+    final groups = state.cartGroups;
+    if (groups.isEmpty) return;
+    int? group = groups.first;
+    if (groups.length > 1) {
+      final lang = context.lang;
+      final picked = await showModalBottomSheet<int>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(ctx.tr('which_order_first'),
+                  style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            for (final g in groups)
+              ListTile(
+                leading: Icon(
+                    g == null
+                        ? Icons.shopping_basket_outlined
+                        : Icons.storefront,
+                    color: brandGreen),
+                title: Text(state.partnerNameIn(g, lang) ?? ctx.tr('groceries'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('Rs. ${money(state.cartEstimateFor(g))}'),
+                trailing: const Icon(Icons.chevron_right),
+                // -1 stands for groceries (a sheet can't return null as a choice).
+                onTap: () => Navigator.pop(ctx, g ?? -1),
+              ),
+          ]),
+        ),
+      );
+      if (picked == null) return;
+      group = picked == -1 ? null : picked;
+    }
+    if (!context.mounted) return;
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => CheckoutView(partnerId: group)));
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final lines = state.cartLines;
     final lang = context.lang;
+    final groups = state.cartGroups;
 
     return HidesOrderNowButton(
         child: Scaffold(
@@ -67,86 +115,126 @@ class CartView extends StatelessWidget {
               ]),
             )
           : ListView(padding: const EdgeInsets.all(12), children: [
-              for (final l in lines)
-                Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Builder(builder: (ctx) {
-                      final p = l.product;
-                      return Card(
-                        margin: EdgeInsets.zero,
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Row(children: [
-                            SizedBox(
-                                width: 64,
-                                height: 64,
-                                child:
-                                    NetImage(p.imageUrl, fit: BoxFit.contain)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(p.displayName(lang),
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600)),
-                                    if ((p.unit ?? '').isNotEmpty)
-                                      Text(p.unit!,
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.black54)),
-                                    PriceText(p),
-                                    const SizedBox(height: 6),
-                                    SizedBox(
-                                        width: 130, child: AddToCartControl(p)),
-                                  ]),
-                            ),
-                            Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  IconButton(
-                                    tooltip: context.tr('remove'),
-                                    icon: const Icon(Icons.delete_outline,
-                                        color: Colors.red),
-                                    onPressed: () =>
-                                        state.removeFromCart(p.cartKey),
-                                  ),
-                                  Text('Rs. ${money(p.finalPrice * l.qty)}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold)),
-                                ]),
-                          ]),
-                        ),
-                      );
-                    })),
-              if (state.customItems.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 6),
-                  child: Text(context.tr('custom_items_section'),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, color: brandAccent)),
+              if (groups.length > 1)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: brandYellowLight,
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Text(context.tr('separate_orders_note'),
+                      style: const TextStyle(fontSize: 12.5)),
                 ),
-                for (final c in state.customItems)
-                  Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: const Icon(Icons.shopping_basket_outlined,
-                          color: brandAccent),
-                      title: Text(c.name),
-                      subtitle: Text(context.tr('price_at_delivery')),
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                        IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: () => state.setCustomQty(c, c.qty - 1)),
-                        Text('${c.qty}',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
-                            onPressed: () => state.setCustomQty(c, c.qty + 1)),
-                      ]),
-                    ),
+              for (final g in groups) ...[
+                if (groups.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 6),
+                    child: Row(children: [
+                      Icon(
+                          g == null
+                              ? Icons.shopping_basket_outlined
+                              : Icons.storefront,
+                          size: 18,
+                          color: brandPrimary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                            state.partnerNameIn(g, lang) ??
+                                context.tr('groceries'),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: brandPrimary)),
+                      ),
+                      Text('Rs. ${money(state.cartEstimateFor(g))}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ]),
                   ),
+                for (final l in state.cartLinesFor(g))
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Builder(builder: (ctx) {
+                        final p = l.product;
+                        return Card(
+                          margin: EdgeInsets.zero,
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Row(children: [
+                              SizedBox(
+                                  width: 64,
+                                  height: 64,
+                                  child: NetImage(p.imageUrl,
+                                      fit: BoxFit.contain)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(p.displayName(lang),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600)),
+                                      if ((p.unit ?? '').isNotEmpty)
+                                        Text(p.unit!,
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black54)),
+                                      PriceText(p),
+                                      const SizedBox(height: 6),
+                                      SizedBox(
+                                          width: 130,
+                                          child: AddToCartControl(p)),
+                                    ]),
+                              ),
+                              Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    IconButton(
+                                      tooltip: context.tr('remove'),
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red),
+                                      onPressed: () =>
+                                          state.removeFromCart(p.cartKey),
+                                    ),
+                                    Text('Rs. ${money(p.finalPrice * l.qty)}',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                  ]),
+                            ]),
+                          ),
+                        );
+                      })),
+                if (g == null && state.customItems.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 6),
+                    child: Text(context.tr('custom_items_section'),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: brandAccent)),
+                  ),
+                  for (final c in state.customItems)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: const Icon(Icons.shopping_basket_outlined,
+                            color: brandAccent),
+                        title: Text(c.name),
+                        subtitle: Text(context.tr('price_at_delivery')),
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                              icon: const Icon(Icons.remove_circle_outline),
+                              onPressed: () =>
+                                  state.setCustomQty(c, c.qty - 1)),
+                          Text('${c.qty}',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
+                              onPressed: () =>
+                                  state.setCustomQty(c, c.qty + 1)),
+                        ]),
+                      ),
+                    ),
+                ],
               ],
               TextButton.icon(
                 onPressed: () => showAddCustomItem(context),
@@ -201,16 +289,7 @@ class CartView extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        if (!state.isLoggedIn && !await openLogin(context)) {
-                          return;
-                        }
-                        if (!context.mounted) return;
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const CheckoutView()));
-                      },
+                      onPressed: () => checkout(context),
                       child: Text(context.tr('proceed_checkout')),
                     ),
                   ),

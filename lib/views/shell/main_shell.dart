@@ -7,7 +7,7 @@ import '../../state/app_state.dart';
 import '../../utils/brand.dart';
 import '../account/account_view.dart';
 import '../common/login_required.dart';
-import '../favorites/favorites_view.dart';
+import '../delivery/delivery_charges_view.dart';
 import '../home/home_view.dart';
 import '../orders/my_orders_view.dart';
 import 'grozo_header.dart';
@@ -19,12 +19,14 @@ class MainShell extends StatefulWidget {
   final int initialTab;
   const MainShell({super.key, this.initialTab = 0});
 
-  static const home = 0, orders = 1, favorites = 2, account = 3;
+  /// Footer tabs. Delivery Charges took Favorites' place; Favorites is now
+  /// in My Account.
+  static const home = 0, orders = 1, deliveryCharges = 2, account = 3;
 
   static _MainShellState? _of(BuildContext context) =>
       context.findAncestorStateOfType<_MainShellState>();
 
-  /// Switches the footer tab (e.g. "My Favorites" on the home page).
+  /// Switches the footer tab (e.g. "My Orders" in My Account).
   static void switchTab(BuildContext context, int index) =>
       _of(context)?.select(index);
 
@@ -130,11 +132,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final user = state.user;
     if (user?.id != _tabsUserId) {
       _tabsUserId = user?.id;
-      for (final i in [
-        MainShell.orders,
-        MainShell.favorites,
-        MainShell.account
-      ]) {
+      for (final i in [MainShell.orders, MainShell.account]) {
         _navKeys[i] = GlobalKey<NavigatorState>();
       }
     }
@@ -143,9 +141,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       user == null
           ? const LoginRequired(titleKey: 'my_orders')
           : MyOrdersView(key: ValueKey(user.id)),
-      user == null
-          ? const LoginRequired(titleKey: 'favorites')
-          : const FavoritesView(),
+      const DeliveryChargesView(),
       const AccountView(),
     ];
 
@@ -234,9 +230,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                   onTap: () => select(1)),
               const SizedBox(width: 84),
               _NavItem(
-                  icon: Icons.favorite_border,
-                  activeIcon: Icons.favorite,
-                  label: context.tr('favorites'),
+                  icon: Icons.local_shipping_outlined,
+                  activeIcon: Icons.local_shipping,
+                  label: context.tr('delivery_charges'),
                   active: _index == 2,
                   onTap: () => select(2)),
               _NavItem(

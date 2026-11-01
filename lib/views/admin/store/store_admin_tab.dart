@@ -6,6 +6,7 @@ import 'branch_admin_view.dart';
 import 'categories_admin_view.dart';
 import 'customer_rules_admin_view.dart';
 import 'delivery_charges_admin_view.dart';
+import 'partners_admin_view.dart';
 import 'products_admin_view.dart';
 import 'store_info_admin_view.dart';
 
@@ -50,6 +51,11 @@ class StoreAdminTab extends StatelessWidget {
             'Home-page banners for offers, discounts and deals',
             const BannersAdminView()),
         item(
+            Icons.handshake_outlined,
+            'Partners',
+            'Shops/restaurants on "Order from our partners" and their items',
+            const PartnersAdminView()),
+        item(
             Icons.storefront_outlined,
             'Branches',
             'Add branches: name, address, phone, hours, map location',
@@ -61,8 +67,8 @@ class StoreAdminTab extends StatelessWidget {
             const DeliveryChargesAdminView()),
         item(
             Icons.loyalty_outlined,
-            'Loyalty deal & problem customers',
-            'Free delivery after N orders; when a customer is marked problematic',
+            'Customers: loyalty, problems, blacklist',
+            'Free delivery after N orders; problem limit; automatic blacklist',
             const CustomerRulesAdminView()),
         item(
             Icons.info_outline,

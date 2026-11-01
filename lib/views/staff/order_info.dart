@@ -41,6 +41,7 @@ class StaffOrderInfo extends StatelessWidget {
                   fontSize: 12,
                   color: Colors.blue)),
         ),
+      if ((raw['partner_name'] ?? '').toString().isNotEmpty) _partnerPickup(),
       _line(Icons.person_outline,
           '${o.contactName ?? raw['customer_name'] ?? 'Customer'}'),
       CustomerStandingBadge(raw),
@@ -112,6 +113,47 @@ class StaffOrderInfo extends StatelessWidget {
         StaffCustomerActions(raw,
             canViewHistory: canViewHistory, onChanged: onChanged),
     ]);
+  }
+
+  /// A partner's order: the rider collects it at the partner's shop first.
+  Widget _partnerPickup() {
+    final lat = double.tryParse('${raw['partner_latitude']}');
+    final lng = double.tryParse('${raw['partner_longitude']}');
+    final where = lat != null && lng != null
+        ? '$lat,$lng'
+        : '${raw['partner_address'] ?? ''}'.trim();
+    final phone = '${raw['partner_phone'] ?? ''}'.trim();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+          color: Colors.purple.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.purple.shade200)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('🏪 PARTNER ORDER – collect from ${raw['partner_name']}',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: Colors.purple.shade900)),
+        if (where.isNotEmpty)
+          InkWell(
+            onTap: () => launchUrl(
+                Uri.https('www.google.com', '/maps/dir/',
+                    {'api': '1', 'destination': where}),
+                mode: LaunchMode.externalApplication),
+            child: _line(Icons.storefront_outlined,
+                '${raw['partner_address'] ?? 'Directions to the shop'}',
+                color: Colors.blue),
+          ),
+        if (phone.isNotEmpty)
+          InkWell(
+            onTap: () => launchUrl(Uri(scheme: 'tel', path: phone)),
+            child: _line(Icons.call, phone, color: Colors.blue),
+          ),
+      ]),
+    );
   }
 
   /// Staff lists return items as a JSON string; the Order model expects a list.

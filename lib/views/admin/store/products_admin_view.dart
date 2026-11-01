@@ -6,9 +6,12 @@ import '../../common/product_widgets.dart';
 import 'admin_form.dart';
 import 'product_variants_admin.dart';
 
-/// All products (including unavailable ones) with search; tap to edit.
+/// All products (including unavailable ones and partners' items) with
+/// search; tap to edit. With [partnerId], only that partner's items.
 class ProductsAdminView extends StatefulWidget {
-  const ProductsAdminView({super.key});
+  final int? partnerId;
+  final String title;
+  const ProductsAdminView({super.key, this.partnerId, this.title = 'Products'});
 
   @override
   State<ProductsAdminView> createState() => _ProductsAdminViewState();
@@ -17,6 +20,7 @@ class ProductsAdminView extends StatefulWidget {
 class _ProductsAdminViewState extends State<ProductsAdminView> {
   List<Map<String, dynamic>>? _products;
   List<Category> _categories = [];
+  List<Map<String, dynamic>> _partners = [];
   String _filter = '';
 
   @override
@@ -26,10 +30,16 @@ class _ProductsAdminViewState extends State<ProductsAdminView> {
   }
 
   Future<void> _load() async {
-    final results =
-        await Future.wait([Api.get('/products'), Api.get('/admin/categories')]);
+    final results = await Future.wait([
+      Api.get('/products', query: {'partner': '${widget.partnerId ?? 'all'}'}),
+      Api.get('/admin/categories'),
+      Api.get('/admin/partners'),
+    ]);
     if (!mounted) return;
     setState(() {
+      if (results[2].ok) {
+        _partners = List<Map<String, dynamic>>.from(results[2].data);
+      }
       if (results[0].ok) {
         _products = List<Map<String, dynamic>>.from(results[0].data);
       }
@@ -45,8 +55,11 @@ class _ProductsAdminViewState extends State<ProductsAdminView> {
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-          builder: (_) =>
-              ProductEditView(product: product, categories: _categories)),
+          builder: (_) => ProductEditView(
+              product: product,
+              categories: _categories,
+              partners: _partners,
+              partnerId: widget.partnerId)),
     );
     if (saved == true) _load();
   }
@@ -59,11 +72,13 @@ class _ProductsAdminViewState extends State<ProductsAdminView> {
             f.isEmpty ||
             '${p['name']} ${p['name_ur'] ?? ''}'.toLowerCase().contains(f))
         .toList();
-    final uncategorised =
-        (_products ?? []).where((p) => p['category_id'] == null).length;
+    // Partners' items don't need a category: they are listed on the partner's page.
+    final uncategorised = (_products ?? [])
+        .where((p) => p['category_id'] == null && p['partner_id'] == null)
+        .length;
 
     return Scaffold(
-      appBar: adminAppBar('Products'),
+      appBar: adminAppBar(widget.title),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: adminColor,
         foregroundColor: Colors.white,
@@ -108,15 +123,17 @@ class _ProductsAdminViewState extends State<ProductsAdminView> {
   Widget _tile(Map<String, dynamic> p) {
     final cat = _categories.where((c) => c.id == p['category_id']).firstOrNull;
     final available = p['available'] == true;
+    final partner = (p['partner_name'] ?? '').toString();
     final details = [
+      if (partner.isNotEmpty && widget.partnerId == null) '🏪 $partner',
       cat == null
-          ? 'No category'
+          ? (partner.isNotEmpty ? null : 'No category')
           : cat.parentId == null
               ? cat.name
               : '${_categories.where((c) => c.id == cat.parentId).firstOrNull?.name ?? ''} › ${cat.name}',
       if ((p['unit'] ?? '').toString().isNotEmpty) p['unit'],
       if (p['stock_qty'] != null) 'Stock: ${p['stock_qty']}',
-    ].join(' • ');
+    ].whereType<Object>().join(' • ');
     return ListTile(
       leading: SizedBox(
           width: 48,
@@ -126,7 +143,10 @@ class _ProductsAdminViewState extends State<ProductsAdminView> {
       subtitle: Text(details,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: cat == null ? Colors.orange.shade800 : null)),
+          style: TextStyle(
+              color: cat == null && partner.isEmpty
+                  ? Colors.orange.shade800
+                  : null)),
       trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -149,7 +169,16 @@ class _ProductsAdminViewState extends State<ProductsAdminView> {
 class ProductEditView extends StatefulWidget {
   final Map<String, dynamic>? product;
   final List<Category> categories;
-  const ProductEditView({super.key, this.product, required this.categories});
+
+  /// Partners for "Sold by"; [partnerId] is preselected for a new item.
+  final List<Map<String, dynamic>> partners;
+  final int? partnerId;
+  const ProductEditView(
+      {super.key,
+      this.product,
+      required this.categories,
+      this.partners = const [],
+      this.partnerId});
 
   @override
   State<ProductEditView> createState() => _ProductEditViewState();
@@ -169,6 +198,8 @@ class _ProductEditViewState extends State<ProductEditView> {
       TextEditingController(text: numText(p['max_per_order']));
   late final _description = TextEditingController(text: p['description'] ?? '');
   late int? _categoryId = p['category_id'] as int?;
+  late int? _partnerId =
+      p.isEmpty ? widget.partnerId : (p['partner_id'] as num?)?.toInt();
   late bool _isAvailable = p.isEmpty ? true : truthy(p['is_available']);
   late bool _isFeatured = truthy(p['is_featured']);
   late DateTime? _discountEnds = parseServerDate(p['discount_ends_at']);
@@ -198,6 +229,7 @@ class _ProductEditViewState extends State<ProductEditView> {
       'max_per_order': blankToNull(_maxPerOrder),
       'description': blankToNull(_description),
       'category_id': _categoryId,
+      'partner_id': _partnerId,
       'is_available': _isAvailable ? 1 : 0,
       'is_featured': _isFeatured ? 1 : 0,
     };
@@ -232,6 +264,34 @@ class _ProductEditViewState extends State<ProductEditView> {
                 required: true, hint: 'e.g. Fresh Milk'),
             adminText(_nameUr, 'Name (Urdu)',
                 hint: 'e.g. تازہ دودھ', direction: TextDirection.rtl),
+            if (widget.partners.isNotEmpty || _partnerId != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DropdownButtonFormField<int?>(
+                  isExpanded: true,
+                  initialValue: _partnerId,
+                  decoration: const InputDecoration(
+                      labelText: 'Sold by',
+                      helperText:
+                          'A partner\'s items are shown on its page and ordered separately'),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                        value: null, child: Text('Grozo (grocery shop)')),
+                    for (final pt in widget.partners)
+                      DropdownMenuItem<int?>(
+                          value: (pt['id'] as num).toInt(),
+                          child: Text('🏪 ${pt['name']}')),
+                    // The partners list didn't load: keep the current one.
+                    if (_partnerId != null &&
+                        !widget.partners.any((pt) => pt['id'] == _partnerId))
+                      DropdownMenuItem<int?>(
+                          value: _partnerId,
+                          child: Text(
+                              '🏪 ${p['partner_name'] ?? 'Partner #$_partnerId'}')),
+                  ],
+                  onChanged: (v) => setState(() => _partnerId = v),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: DropdownButtonFormField<int?>(

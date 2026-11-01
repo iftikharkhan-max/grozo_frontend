@@ -182,6 +182,11 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                 tooltip: 'New phone order',
                 icon: const Icon(Icons.add_call),
                 onPressed: _openPhoneOrder),
+            IconButton(
+                tooltip: 'Blacklisted customers',
+                icon: const Icon(Icons.block),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const BlacklistView()))),
             IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshAll),
             IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
           ],

@@ -121,7 +121,9 @@ class _ChangeRequestViewState extends State<ChangeRequestView> {
           section(
               context.tr('items'),
               OrderItemsEditor(
-                  lines: _lines, onChanged: () => setState(() {}))),
+                  lines: _lines,
+                  partnerId: widget.order.partnerId,
+                  onChanged: () => setState(() {}))),
           section(
             context.tr('delivery_address'),
             Row(children: [

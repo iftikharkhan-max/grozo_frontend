@@ -26,6 +26,12 @@ class Product {
   /// The product's variations (only on the product itself).
   final List<Product> variants;
 
+  /// A partner's item (e.g. Faridullah Fish). Partner items are ordered
+  /// separately from groceries, one partner per order.
+  final int? partnerId;
+  final String? partnerName;
+  final String? partnerNameUr;
+
   const Product({
     required this.id,
     required this.name,
@@ -42,7 +48,15 @@ class Product {
     this.available = true,
     this.variantId,
     this.variants = const [],
+    this.partnerId,
+    this.partnerName,
+    this.partnerNameUr,
   });
+
+  String? partnerDisplayName(String lang) =>
+      lang == 'ur' && (partnerNameUr ?? '').isNotEmpty
+          ? partnerNameUr
+          : partnerName;
 
   bool get hasDiscount => finalPrice < price;
 
@@ -71,12 +85,16 @@ class Product {
           : imageUrl,
       categoryId: categoryId,
       price: vPrice,
-      finalPrice: v['final_price'] == null ? vPrice : _toDouble(v['final_price']),
+      finalPrice:
+          v['final_price'] == null ? vPrice : _toDouble(v['final_price']),
       discountPercent: _toIntOrNull(v['discount_percent']) ?? 0,
       stockQty: _toIntOrNull(v['stock_qty']),
       maxPerOrder: maxPerOrder,
       available: v['available'] == null ? true : v['available'] == true,
       variantId: _toIntOrNull(v['id']),
+      partnerId: partnerId,
+      partnerName: partnerName,
+      partnerNameUr: partnerNameUr,
     );
   }
 
@@ -107,6 +125,9 @@ class Product {
       maxPerOrder: _toIntOrNull(j['max_per_order']),
       available: j['available'] == null ? true : j['available'] == true,
       variantId: _toIntOrNull(j['variant_id']),
+      partnerId: _toIntOrNull(j['partner_id']),
+      partnerName: j['partner_name']?.toString(),
+      partnerNameUr: j['partner_name_ur']?.toString(),
     );
     final raw = j['variants'];
     if (raw is! List || raw.isEmpty) return base;
@@ -124,6 +145,9 @@ class Product {
       stockQty: base.stockQty,
       maxPerOrder: base.maxPerOrder,
       available: base.available,
+      partnerId: base.partnerId,
+      partnerName: base.partnerName,
+      partnerNameUr: base.partnerNameUr,
       // Server rows carry product_id; rows saved with the cart are products.
       variants: [
         for (final v in raw.whereType<Map>())
@@ -149,6 +173,9 @@ class Product {
         'max_per_order': maxPerOrder,
         'available': available,
         'variant_id': variantId,
+        if (partnerId != null) 'partner_id': partnerId,
+        if (partnerName != null) 'partner_name': partnerName,
+        if (partnerNameUr != null) 'partner_name_ur': partnerNameUr,
         if (variants.isNotEmpty)
           'variants': [for (final v in variants) v.toJson()],
       };

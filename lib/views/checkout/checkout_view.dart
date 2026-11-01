@@ -19,8 +19,12 @@ import '../shell/main_shell.dart';
 /// picks one here (or already did in the header) before Confirm is enabled.
 /// All amounts come from the server's quote; the order is only placed when the
 /// customer presses Confirm, and the server re-checks the total at that moment.
+///
+/// [partnerId]: checkout for one partner's items (e.g. Faridullah Fish); null
+/// for groceries. Each is its own order, delivered branch → partner → you.
 class CheckoutView extends StatefulWidget {
-  const CheckoutView({super.key});
+  final int? partnerId;
+  const CheckoutView({super.key, this.partnerId});
 
   @override
   State<CheckoutView> createState() => _CheckoutViewState();
@@ -39,11 +43,14 @@ class _CheckoutViewState extends State<CheckoutView> {
       _banner; // explains why the customer should review (prices/cart changed)
   bool _placing = false;
 
-  /// Extra market items, written as the shopping list sent with the order.
-  String get _extraText => context.read<AppState>().customItemsText;
+  /// Extra market items, written as the shopping list sent with the order
+  /// (groceries only).
+  String get _extraText =>
+      widget.partnerId == null ? context.read<AppState>().customItemsText : '';
 
   /// Only extra items, no catalogue products.
-  bool get _isMarket => context.read<AppState>().cartLines.isEmpty;
+  bool get _isMarket =>
+      context.read<AppState>().cartLinesFor(widget.partnerId).isEmpty;
 
   /// The branch that will fulfil the order; null until the customer picks one.
   int? _branchId;
@@ -122,7 +129,7 @@ class _CheckoutViewState extends State<CheckoutView> {
 
   List<Map<String, dynamic>> _cartItems() => context
       .read<AppState>()
-      .cartLines
+      .cartLinesFor(widget.partnerId)
       .map((l) => {
             'productId': l.product.id,
             if (l.product.variantId != null) 'variantId': l.product.variantId,
@@ -138,6 +145,7 @@ class _CheckoutViewState extends State<CheckoutView> {
       'branchId': _branchId,
       'addressId': _address?['id'],
       'deliveryMethod': 'delivery',
+      if (widget.partnerId != null) 'partnerId': widget.partnerId,
     });
     if (!mounted) return;
     setState(() {
@@ -239,7 +247,8 @@ class _CheckoutViewState extends State<CheckoutView> {
       }
     }
     setState(() => _banner = null);
-    if (state.cartLines.isEmpty) {
+    if (state.cartLinesFor(widget.partnerId).isEmpty &&
+        (widget.partnerId != null || state.customItems.isEmpty)) {
       Navigator.pop(context);
       return;
     }
@@ -259,6 +268,8 @@ class _CheckoutViewState extends State<CheckoutView> {
         return '$name: ${context.trf('problem_max', {
               'n': p['available_qty']
             })}';
+      case 'other_partner':
+        return '$name: ${context.tr('problem_other_partner')}';
       default:
         return '$name ${context.tr('problem_unavailable')}';
     }
@@ -283,6 +294,7 @@ class _CheckoutViewState extends State<CheckoutView> {
       'contactMobile': _mobile.text.trim(),
       'note': _note.text.trim(),
       'expectedTotal': _quote!['total'],
+      if (widget.partnerId != null) 'partnerId': widget.partnerId,
     });
     if (!mounted) return;
     setState(() => _placing = false);
@@ -293,7 +305,7 @@ class _CheckoutViewState extends State<CheckoutView> {
         Api.put('/auth/me', {'mobile': _mobile.text.trim()})
             .then((_) => state.refreshProfile());
       }
-      state.clearCart();
+      state.clearCartGroup(widget.partnerId);
       state.ordersChanged();
       final order =
           Order.fromJson(Map<String, dynamic>.from(res.data['order']));
@@ -321,9 +333,28 @@ class _CheckoutViewState extends State<CheckoutView> {
       });
       return;
     }
+    if (res.status == 403 && res.errorCode == 'blacklisted') {
+      setState(() => _quote?['problems'] = [
+            ..._problems,
+            {'reason': 'blacklisted'}
+          ]);
+      return;
+    }
     _toast(res.errorCode == 'network'
         ? context.tr('err_network')
         : context.tr('order_failed'));
+  }
+
+  /// Problems that stop the order but aren't about one item.
+  Widget? _orderBlock() {
+    final reasons = _problems.map((p) => p['reason']).toSet();
+    if (reasons.contains('blacklisted')) {
+      return _notice(context.tr('account_on_hold'), Colors.red);
+    }
+    if (reasons.contains('partner_unavailable')) {
+      return _notice(context.tr('partner_unavailable'), Colors.orange);
+    }
+    return null;
   }
 
   void _toast(String m) =>
@@ -333,12 +364,16 @@ class _CheckoutViewState extends State<CheckoutView> {
   Widget build(BuildContext context) {
     return HidesOrderNowButton(
         child: Scaffold(
-      appBar: AppBar(title: Text(context.tr('checkout'))),
+      appBar: AppBar(
+          title: Text(widget.partnerId == null
+              ? context.tr('checkout')
+              : '${context.tr('checkout')} – ${context.read<AppState>().partnerNameIn(widget.partnerId, context.lang) ?? ''}')),
       body: !_addressesLoaded
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [
+                if (_orderBlock() != null) _orderBlock()!,
                 if (_banner != null) _notice(_banner!, Colors.orange),
                 if (_itemProblems.isNotEmpty) _problemsCard(),
                 _branchCard(),
@@ -622,6 +657,22 @@ class _CheckoutViewState extends State<CheckoutView> {
     );
   }
 
+  /// "Branch → Faridullah Fish 3.1 km → you 4.2 km" for a partner's order.
+  String? _routeText(Map<String, dynamic> q) {
+    final route = q['route'];
+    final partner = q['partner'];
+    if (route is! Map || partner is! Map) return null;
+    final a = route['branch_to_partner_km'] as num?;
+    final b = route['partner_to_customer_km'] as num?;
+    if (a == null || b == null) return null;
+    final branch = q['branch'] is Map ? q['branch'] as Map : const {};
+    final lang = context.lang;
+    String name(Map m) =>
+        '${lang == 'ur' && '${m['name_ur'] ?? ''}'.isNotEmpty ? m['name_ur'] : m['name'] ?? ''}';
+    return '${name(branch)} → ${name(partner)}: ${a.toStringAsFixed(1)} km\n'
+        '${name(partner)} → ${context.tr('delivery_point')}: ${b.toStringAsFixed(1)} km';
+  }
+
   Widget _pinRow(Map<String, dynamic> a) {
     final pinned = a['latitude'] != null && a['longitude'] != null;
     return Row(children: [
@@ -772,6 +823,12 @@ class _CheckoutViewState extends State<CheckoutView> {
                     : delivery == null
                         ? context.tr('to_be_confirmed')
                         : 'Rs. ${money(delivery)}'),
+        if (!itemsOnly && _routeText(q) != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(_routeText(q)!,
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          ),
         if (loyalty?['applied'] == true && loyalty?['reward'] == 'amount')
           row('🎁 ${context.tr('loyalty_reward')}',
               '− Rs. ${money((q['loyalty_discount'] as num?) ?? 0)}',

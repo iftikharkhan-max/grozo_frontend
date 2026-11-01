@@ -56,19 +56,18 @@ void main() {
   });
 
   group('Home layout', () {
-    testWidgets('Market Shopping is bigger; Deals is one compact row', (tester) async {
+    testWidgets('3:1 banner, then Explore Categories in two columns (Nov 2026 design)', (tester) async {
       await h.startApp(tester);
-      final market = tester.getRect(find.text('Market Shopping').first);
-      final deals = tester.getRect(find.text('Deals & Discounts'));
-      // Was 120 px on this phone (393x851), then 180; now it takes all the
-      // space left after a 3:1 banner (incl. the removed bottom row).
-      expect(deals.top - market.top, greaterThan(200));
       final banner = tester.getRect(find.byType(PageView).first);
       expect(banner.width / banner.height, closeTo(3.0, 0.05), reason: 'banners are 3:1');
-      final dealsBox = find.ancestor(
-          of: find.text('Deals & Discounts'),
-          matching: find.byWidgetPredicate((w) => w is SizedBox && (w.height ?? 0) >= 100 && w.height! <= 110));
-      expect(dealsBox, findsOneWidget, reason: 'deals strip gave up the space');
+      final title = tester.getRect(find.text('Explore Categories'));
+      expect(title.top, greaterThan(banner.bottom));
+      // Two cards side by side, under the title.
+      final left = tester.getRect(find.text('Vegetables'));
+      final right = tester.getRect(find.text('Fruits'));
+      expect(left.top, closeTo(right.top, 2));
+      expect(right.left, greaterThan(left.right));
+      expect(left.top, greaterThan(title.bottom));
       expect(tester.takeException(), isNull);
       await h.stopApp(tester);
     });
@@ -91,7 +90,7 @@ void main() {
 
       await tester.drag(carousel, const Offset(-350, 0));
       await h.settle(tester);
-      expect(find.text('Delivery Charges'), findsOneWidget);
+      expect(find.descendant(of: carousel, matching: find.text('Delivery Charges')), findsOneWidget);
       expect(find.textContaining('km Rs.'), findsOneWidget, reason: 'charges summarised on the slide');
       expect(tester.takeException(), isNull);
       await h.stopApp(tester);
