@@ -19,12 +19,10 @@ import '../shell/main_shell.dart';
 /// picks one here (or already did in the header) before Confirm is enabled.
 /// All amounts come from the server's quote; the order is only placed when the
 /// customer presses Confirm, and the server re-checks the total at that moment.
-///
-/// [partnerId]: checkout for one partner's items (e.g. Faridullah Fish); null
-/// for groceries. Each is its own order, delivered branch → partner → you.
+/// Partners' items (e.g. Faridullah Fish) can be in the same order: the rider
+/// collects them on the way (branch → shop → you).
 class CheckoutView extends StatefulWidget {
-  final int? partnerId;
-  const CheckoutView({super.key, this.partnerId});
+  const CheckoutView({super.key});
 
   @override
   State<CheckoutView> createState() => _CheckoutViewState();
@@ -45,12 +43,10 @@ class _CheckoutViewState extends State<CheckoutView> {
 
   /// Extra market items, written as the shopping list sent with the order
   /// (groceries only).
-  String get _extraText =>
-      widget.partnerId == null ? context.read<AppState>().customItemsText : '';
+  String get _extraText => context.read<AppState>().customItemsText;
 
   /// Only extra items, no catalogue products.
-  bool get _isMarket =>
-      context.read<AppState>().cartLinesFor(widget.partnerId).isEmpty;
+  bool get _isMarket => context.read<AppState>().cartLines.isEmpty;
 
   /// The branch that will fulfil the order; null until the customer picks one.
   int? _branchId;
@@ -129,7 +125,7 @@ class _CheckoutViewState extends State<CheckoutView> {
 
   List<Map<String, dynamic>> _cartItems() => context
       .read<AppState>()
-      .cartLinesFor(widget.partnerId)
+      .cartLines
       .map((l) => {
             'productId': l.product.id,
             if (l.product.variantId != null) 'variantId': l.product.variantId,
@@ -145,7 +141,6 @@ class _CheckoutViewState extends State<CheckoutView> {
       'branchId': _branchId,
       'addressId': _address?['id'],
       'deliveryMethod': 'delivery',
-      if (widget.partnerId != null) 'partnerId': widget.partnerId,
     });
     if (!mounted) return;
     setState(() {
@@ -247,8 +242,7 @@ class _CheckoutViewState extends State<CheckoutView> {
       }
     }
     setState(() => _banner = null);
-    if (state.cartLinesFor(widget.partnerId).isEmpty &&
-        (widget.partnerId != null || state.customItems.isEmpty)) {
+    if (state.cartIsEmpty) {
       Navigator.pop(context);
       return;
     }
@@ -268,8 +262,6 @@ class _CheckoutViewState extends State<CheckoutView> {
         return '$name: ${context.trf('problem_max', {
               'n': p['available_qty']
             })}';
-      case 'other_partner':
-        return '$name: ${context.tr('problem_other_partner')}';
       default:
         return '$name ${context.tr('problem_unavailable')}';
     }
@@ -294,7 +286,6 @@ class _CheckoutViewState extends State<CheckoutView> {
       'contactMobile': _mobile.text.trim(),
       'note': _note.text.trim(),
       'expectedTotal': _quote!['total'],
-      if (widget.partnerId != null) 'partnerId': widget.partnerId,
     });
     if (!mounted) return;
     setState(() => _placing = false);
@@ -305,7 +296,7 @@ class _CheckoutViewState extends State<CheckoutView> {
         Api.put('/auth/me', {'mobile': _mobile.text.trim()})
             .then((_) => state.refreshProfile());
       }
-      state.clearCartGroup(widget.partnerId);
+      state.clearCart();
       state.ordersChanged();
       final order =
           Order.fromJson(Map<String, dynamic>.from(res.data['order']));
@@ -364,10 +355,7 @@ class _CheckoutViewState extends State<CheckoutView> {
   Widget build(BuildContext context) {
     return HidesOrderNowButton(
         child: Scaffold(
-      appBar: AppBar(
-          title: Text(widget.partnerId == null
-              ? context.tr('checkout')
-              : '${context.tr('checkout')} – ${context.read<AppState>().partnerNameIn(widget.partnerId, context.lang) ?? ''}')),
+      appBar: AppBar(title: Text(context.tr('checkout'))),
       body: !_addressesLoaded
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -657,20 +645,29 @@ class _CheckoutViewState extends State<CheckoutView> {
     );
   }
 
-  /// "Branch → Faridullah Fish 3.1 km → you 4.2 km" for a partner's order.
+  /// "Main Bazar → Faridullah Fish: 3.1 km / Faridullah Fish → delivery point:
+  /// 4.2 km" when the rider collects partner items on the way.
   String? _routeText(Map<String, dynamic> q) {
     final route = q['route'];
-    final partner = q['partner'];
-    if (route is! Map || partner is! Map) return null;
-    final a = route['branch_to_partner_km'] as num?;
-    final b = route['partner_to_customer_km'] as num?;
-    if (a == null || b == null) return null;
-    final branch = q['branch'] is Map ? q['branch'] as Map : const {};
+    final legs = route is Map ? route['legs'] : null;
+    if (legs is! List || legs.length < 2) return null;
+    final shops = {
+      for (final p in (q['partners'] as List? ?? const []))
+        if (p is Map) '${p['name']}': p
+    };
     final lang = context.lang;
-    String name(Map m) =>
-        '${lang == 'ur' && '${m['name_ur'] ?? ''}'.isNotEmpty ? m['name_ur'] : m['name'] ?? ''}';
-    return '${name(branch)} → ${name(partner)}: ${a.toStringAsFixed(1)} km\n'
-        '${name(partner)} → ${context.tr('delivery_point')}: ${b.toStringAsFixed(1)} km';
+    String name(String? n) {
+      if (n == null) return context.tr('delivery_point');
+      final p = shops[n];
+      return lang == 'ur' && p != null && '${p['name_ur'] ?? ''}'.isNotEmpty
+          ? '${p['name_ur']}'
+          : n;
+    }
+
+    return [
+      for (final l in legs.whereType<Map>())
+        '${name(l['from']?.toString())} → ${name(l['to']?.toString())}: ${(l['km'] as num).toStringAsFixed(1)} km'
+    ].join('\n');
   }
 
   Widget _pinRow(Map<String, dynamic> a) {

@@ -259,8 +259,8 @@ class AppState extends ChangeNotifier {
 
   List<CartLine> get cartLines => _cart.values.toList();
 
-  /// The cart holds groceries (null) and items of partners; each becomes its
-  /// own order. Groceries (with "not in the list" items) come first.
+  /// Shops in the cart, for its headings: groceries (null) first, then each
+  /// partner. They are all one order.
   List<int?> get cartGroups {
     final out = <int?>[];
     if (customItems.isNotEmpty ||
@@ -285,12 +285,7 @@ class AppState extends ChangeNotifier {
       ? null
       : cartLinesFor(partnerId).firstOrNull?.product.partnerDisplayName(lang);
 
-  /// Empties one group after its order was placed.
-  void clearCartGroup(int? partnerId) {
-    _cart.removeWhere((_, l) => l.product.partnerId == partnerId);
-    if (partnerId == null) customItems.clear();
-    _saveCart();
-  }
+
   int get cartCount => _cart.values.fold(0, (s, l) => s + l.qty) + customItems.fold(0, (s, c) => s + c.qty);
   bool get cartIsEmpty => _cart.isEmpty && customItems.isEmpty;
 

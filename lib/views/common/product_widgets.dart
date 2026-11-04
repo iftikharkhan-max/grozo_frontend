@@ -245,20 +245,9 @@ class _StepButton extends StatelessWidget {
 }
 
 void addWithFeedback(BuildContext context, Product p, {bool quiet = false}) {
-  final state = context.read<AppState>();
-  // Another shop's items are already in the cart: this one becomes its own order.
-  final newOrder =
-      !state.cartGroups.contains(p.partnerId) && !state.cartIsEmpty;
-  final added = state.addToCart(p);
+  final added = context.read<AppState>().addToCart(p);
   final messenger = ScaffoldMessenger.of(context);
-  if (added && newOrder) {
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-        content: Text(context.trf('added_separate_order', {
-          'shop': p.partnerDisplayName(context.lang) ?? context.tr('groceries')
-        })),
-        duration: const Duration(seconds: 3)));
-  } else if (!added) {
+  if (!added) {
     messenger.hideCurrentSnackBar();
     messenger
         .showSnackBar(SnackBar(content: Text(context.tr('max_qty_reached'))));

@@ -13,55 +13,19 @@ import '../shell/main_shell.dart';
 
 /// Cart with quantity controls. The total shown here is an estimate from the
 /// last known prices; checkout gets the confirmed total from the server.
-/// Groceries and each partner's items are separate orders: with more than
-/// one, the cart shows them under their own headings and checkout asks which
-/// order to place.
+/// Groceries and partners' items (e.g. Faridullah Fish) are one order; with
+/// items from more than one shop the cart lists them under each shop's name.
 class CartView extends StatelessWidget {
   const CartView({super.key});
 
-  /// Opens checkout for one group of the cart (null = groceries).
+  /// Opens checkout for the whole cart: groceries and partners' items are
+  /// one order (the rider collects partner items on the way).
   static Future<void> checkout(BuildContext context) async {
     final state = context.read<AppState>();
     if (!state.isLoggedIn && !await openLogin(context)) return;
-    if (!context.mounted) return;
-    final groups = state.cartGroups;
-    if (groups.isEmpty) return;
-    int? group = groups.first;
-    if (groups.length > 1) {
-      final lang = context.lang;
-      final picked = await showModalBottomSheet<int>(
-        context: context,
-        showDragHandle: true,
-        builder: (ctx) => SafeArea(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(ctx.tr('which_order_first'),
-                  style: Theme.of(ctx).textTheme.titleMedium),
-            ),
-            for (final g in groups)
-              ListTile(
-                leading: Icon(
-                    g == null
-                        ? Icons.shopping_basket_outlined
-                        : Icons.storefront,
-                    color: brandGreen),
-                title: Text(state.partnerNameIn(g, lang) ?? ctx.tr('groceries'),
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text('Rs. ${money(state.cartEstimateFor(g))}'),
-                trailing: const Icon(Icons.chevron_right),
-                // -1 stands for groceries (a sheet can't return null as a choice).
-                onTap: () => Navigator.pop(ctx, g ?? -1),
-              ),
-          ]),
-        ),
-      );
-      if (picked == null) return;
-      group = picked == -1 ? null : picked;
-    }
-    if (!context.mounted) return;
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => CheckoutView(partnerId: group)));
+    if (!context.mounted || state.cartIsEmpty) return;
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const CheckoutView()));
   }
 
   @override

@@ -28,6 +28,9 @@ class OrderLine {
   final double originalPrice;
   final double lineTotal;
 
+  /// A partner's item: the shop it is collected from.
+  final String? partnerName;
+
   OrderLine.fromJson(Map<String, dynamic> j)
       : productId = _in(j['product_id']),
         variantId = _in(j['variant_id']),
@@ -42,7 +45,8 @@ class OrderLine {
             : _d(j['original_price']),
         lineTotal = j['line_total'] == null
             ? _d(j['price']) * (_in(j['qty']) ?? 1)
-            : _d(j['line_total']);
+            : _d(j['line_total']),
+        partnerName = j['partner_name']?.toString();
 
   String displayName(String lang) =>
       lang == 'ur' && (nameUr ?? '').isNotEmpty ? nameUr! : name;
@@ -57,6 +61,36 @@ enum OrderStep {
   delivered,
   completed,
   cancelled
+}
+
+/// Shops to collect from: pickup_json (any number of partners), or the one
+/// partner joined from orders.partner_id.
+List<Map<String, dynamic>> _pickups(Map<String, dynamic> j) {
+  var raw = j['pickup_json'];
+  if (raw is String) {
+    try {
+      raw = jsonDecode(raw);
+    } catch (_) {
+      raw = null;
+    }
+  }
+  if (raw is List) {
+    return [for (final p in raw.whereType<Map>()) Map<String, dynamic>.from(p)];
+  }
+  if ((j['partner_name'] ?? '').toString().isNotEmpty) {
+    return [
+      {
+        'id': j['partner_id'],
+        'name': j['partner_name'],
+        'name_ur': j['partner_name_ur'],
+        'address': j['partner_address'],
+        'phone': j['partner_phone'],
+        'latitude': j['partner_latitude'],
+        'longitude': j['partner_longitude'],
+      }
+    ];
+  }
+  return const [];
 }
 
 class Order {
@@ -82,10 +116,9 @@ class Order {
   final bool loyaltyReward;
   final double? loyaltyDiscount;
 
-  /// A partner's order (e.g. Faridullah Fish): the rider collects it there.
-  final int? partnerId;
-  final String? partnerName;
-  final String? partnerNameUr;
+  /// Partner shops (e.g. Faridullah Fish) the rider collects items from:
+  /// [{id, name, name_ur, address, phone, latitude, longitude}].
+  final List<Map<String, dynamic>> pickups;
   final String paymentMethod;
   final String deliveryMethod;
   final String? destination;
@@ -133,9 +166,7 @@ class Order {
         loyaltyReward =
             _in(j['loyalty_reward']) == 1 || j['loyalty_reward'] == true,
         loyaltyDiscount = _dn(j['loyalty_discount']),
-        partnerId = _in(j['partner_id']),
-        partnerName = j['partner_name']?.toString(),
-        partnerNameUr = j['partner_name_ur']?.toString(),
+        pickups = _pickups(j),
         paymentMethod = (j['payment_method'] ?? 'COD').toString(),
         deliveryMethod = (j['delivery_method'] ?? 'delivery').toString(),
         destination = j['destination']?.toString(),

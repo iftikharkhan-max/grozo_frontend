@@ -193,7 +193,8 @@ class _ProductPickerViewState extends State<ProductPickerView> {
     final text = _search.text.trim();
     final res = await Api.get('/products', query: {
       if (text.isNotEmpty) 'q': text,
-      if (widget.partnerId != null) 'partner': '${widget.partnerId}',
+      // Groceries and partners' items (an order can have both).
+      'partner': '${widget.partnerId ?? 'all'}',
     });
     if (!mounted) return;
     setState(() {

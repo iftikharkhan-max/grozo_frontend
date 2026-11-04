@@ -140,16 +140,19 @@ class _OrderDetailViewState extends State<OrderDetailView> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(padding: const EdgeInsets.all(12), children: [
-                if ((o.partnerName ?? '').isNotEmpty)
+                if (o.pickups.isNotEmpty)
                   Card(
                     child: ListTile(
                       dense: true,
                       leading: const Icon(Icons.storefront, color: brandGreen),
                       title: Text(context.trf('order_from_partner', {
-                        'shop': context.lang == 'ur' &&
-                                (o.partnerNameUr ?? '').isNotEmpty
-                            ? o.partnerNameUr!
-                            : o.partnerName!
+                        'shop': [
+                          for (final p in o.pickups)
+                            context.lang == 'ur' &&
+                                    '${p['name_ur'] ?? ''}'.isNotEmpty
+                                ? '${p['name_ur']}'
+                                : '${p['name'] ?? ''}'
+                        ].join(', ')
                       })),
                     ),
                   ),

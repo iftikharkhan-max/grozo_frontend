@@ -153,6 +153,22 @@ void main() {
           'customer_incidents': 0, 'customer_problematic': false, ...extra,
         };
 
+    testWidgets('pool: customer history can be opened before claiming', (tester) async {
+      h.overrides['GET /orders/pool'] = (200, [
+        row(5, 'Bilal', {'customer_label': 'returning', 'customer_delivered': 3}),
+      ]);
+      h.overrides['GET /orders/reports/9/manager'] = (200, {'count': 0, 'total': 0});
+      h.overrides['GET /staff/customers/5/history'] = (200, history);
+      await h.startApp(tester, role: 'Manager', home: ManagerDashboard(user: manager));
+      // Visible on the card itself, without expanding it or claiming.
+      expect(find.text('Claim'), findsOneWidget);
+      await tester.tap(find.text('Customer history'));
+      await h.settle(tester);
+      expect(find.byType(CustomerHistoryView), findsOneWidget);
+      expect(h.requests, isNot(contains('PUT /orders/5/claim')));
+      await h.stopApp(tester);
+    });
+
     testWidgets('incoming orders say who the customer is', (tester) async {
       h.overrides['GET /orders/pool'] = (200, [
         row(21, 'Asma', {'customer_label': 'regular', 'customer_delivered': 7}),

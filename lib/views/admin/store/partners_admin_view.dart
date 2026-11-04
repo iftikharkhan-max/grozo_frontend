@@ -112,6 +112,9 @@ class _PartnerEditViewState extends State<PartnerEditView> {
   late final _nameUr = TextEditingController(text: p['name_ur'] ?? '');
   late final _kind = TextEditingController(text: p['kind'] ?? '');
   late final _kindUr = TextEditingController(text: p['kind_ur'] ?? '');
+  late final _description = TextEditingController(text: p['description'] ?? '');
+  late final _descriptionUr =
+      TextEditingController(text: p['description_ur'] ?? '');
   late final _phone = TextEditingController(text: p['phone'] ?? '');
   late final _address = TextEditingController(text: p['address'] ?? '');
   late final _sort = TextEditingController(text: numText(p['sort_order']));
@@ -126,7 +129,17 @@ class _PartnerEditViewState extends State<PartnerEditView> {
 
   @override
   void dispose() {
-    for (final c in [_name, _nameUr, _kind, _kindUr, _phone, _address, _sort]) {
+    for (final c in [
+      _name,
+      _nameUr,
+      _kind,
+      _kindUr,
+      _description,
+      _descriptionUr,
+      _phone,
+      _address,
+      _sort
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -161,6 +174,8 @@ class _PartnerEditViewState extends State<PartnerEditView> {
       'name_ur': blankToNull(_nameUr),
       'kind': blankToNull(_kind),
       'kind_ur': blankToNull(_kindUr),
+      'description': blankToNull(_description),
+      'description_ur': blankToNull(_descriptionUr),
       'phone': blankToNull(_phone),
       'address': blankToNull(_address),
       'latitude': _lat,
@@ -232,6 +247,12 @@ class _PartnerEditViewState extends State<PartnerEditView> {
           adminText(_kind, 'Type (English)',
               hint: 'e.g. Restaurant, Fish, Bakery'),
           adminText(_kindUr, 'Type (Urdu)', direction: TextDirection.rtl),
+          adminText(_description, 'About the partner (English)',
+              maxLines: 4,
+              hint:
+                  'Shown at the top of its page, e.g. fresh fish daily since 1985'),
+          adminText(_descriptionUr, 'About the partner (Urdu)',
+              maxLines: 4, direction: TextDirection.rtl),
           adminText(_phone, 'Phone', keyboard: TextInputType.phone),
           adminSection('Shop location (rider collects orders here)'),
           adminText(_address, 'Address', maxLines: 2),

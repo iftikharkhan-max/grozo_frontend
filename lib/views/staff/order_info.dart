@@ -41,7 +41,7 @@ class StaffOrderInfo extends StatelessWidget {
                   fontSize: 12,
                   color: Colors.blue)),
         ),
-      if ((raw['partner_name'] ?? '').toString().isNotEmpty) _partnerPickup(),
+      for (final p in o.pickups) _partnerPickup(p),
       _line(Icons.person_outline,
           '${o.contactName ?? raw['customer_name'] ?? 'Customer'}'),
       CustomerStandingBadge(raw),
@@ -85,7 +85,8 @@ class StaffOrderInfo extends StatelessWidget {
             child: Row(children: [
               Expanded(
                   child: Text(
-                      '• ${l.name}${(l.unit ?? '').isNotEmpty ? ' (${l.unit})' : ''}  × ${l.qty}')),
+                      '• ${l.name}${(l.unit ?? '').isNotEmpty ? ' (${l.unit})' : ''}  × ${l.qty}'
+                      '${(l.partnerName ?? '').isNotEmpty ? '  🏪 ${l.partnerName}' : ''}')),
               if (l.price > 0) Text('Rs. ${money(l.lineTotal)}'),
             ]),
           ),
@@ -115,14 +116,14 @@ class StaffOrderInfo extends StatelessWidget {
     ]);
   }
 
-  /// A partner's order: the rider collects it at the partner's shop first.
-  Widget _partnerPickup() {
-    final lat = double.tryParse('${raw['partner_latitude']}');
-    final lng = double.tryParse('${raw['partner_longitude']}');
+  /// Partner items: the rider collects them at the partner's shop on the way.
+  Widget _partnerPickup(Map<String, dynamic> p) {
+    final lat = double.tryParse('${p['latitude']}');
+    final lng = double.tryParse('${p['longitude']}');
     final where = lat != null && lng != null
         ? '$lat,$lng'
-        : '${raw['partner_address'] ?? ''}'.trim();
-    final phone = '${raw['partner_phone'] ?? ''}'.trim();
+        : '${p['address'] ?? ''}'.trim();
+    final phone = '${p['phone'] ?? ''}'.trim();
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 6),
@@ -132,7 +133,7 @@ class StaffOrderInfo extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.purple.shade200)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('🏪 PARTNER ORDER – collect from ${raw['partner_name']}',
+        Text('🏪 COLLECT FROM ${p['name']} (partner items)',
             style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
@@ -144,7 +145,7 @@ class StaffOrderInfo extends StatelessWidget {
                     {'api': '1', 'destination': where}),
                 mode: LaunchMode.externalApplication),
             child: _line(Icons.storefront_outlined,
-                '${raw['partner_address'] ?? 'Directions to the shop'}',
+                '${p['address'] ?? 'Directions to the shop'}',
                 color: Colors.blue),
           ),
         if (phone.isNotEmpty)

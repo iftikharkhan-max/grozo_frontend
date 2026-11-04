@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/api.dart';
+import '../../account/location_picker_view.dart';
 import 'admin_form.dart';
 
 /// All branches (including hidden ones). Customers pick one from the app
@@ -59,12 +60,19 @@ class _BranchesAdminViewState extends State<BranchesAdminView> {
                               ? adminColor
                               : Colors.grey),
                       title: Text('${b['name']}'),
-                      subtitle: Text([
-                        b['address'],
-                        if (!truthy(b['is_active'])) 'Hidden'
-                      ]
-                          .where((x) => (x ?? '').toString().isNotEmpty)
-                          .join(' • ')),
+                      subtitle: Text(
+                          [
+                            b['address'],
+                            if (!truthy(b['is_active'])) 'Hidden',
+                            if (b['latitude'] == null || b['longitude'] == null)
+                              '⚠ No map location – delivery charges can\'t be worked out',
+                          ]
+                              .where((x) => (x ?? '').toString().isNotEmpty)
+                              .join(' • '),
+                          style: TextStyle(
+                              color: b['latitude'] == null
+                                  ? Colors.orange.shade900
+                                  : null)),
                       trailing: const Icon(Icons.edit_outlined),
                       onTap: () => _edit(b),
                     ),
@@ -113,6 +121,24 @@ class _BranchAdminViewState extends State<BranchAdminView> {
     }
   }
 
+  /// Shop location on the map (same picker the customers use).
+  Future<void> _pickOnMap() async {
+    final picked = await Navigator.push<PickedLocation>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => LocationPickerView(
+                latitude: double.tryParse(_lat.text.trim()),
+                longitude: double.tryParse(_lng.text.trim()))));
+    if (picked == null || !mounted) return;
+    setState(() {
+      _lat.text = picked.latitude.toStringAsFixed(7);
+      _lng.text = picked.longitude.toStringAsFixed(7);
+      if (_address.text.trim().isEmpty && picked.address != null) {
+        _address.text = picked.address!;
+      }
+    });
+  }
+
   /// Pulls "lat,lng" out of a pasted Google Maps link or coordinates.
   void _applyMapsLink(String text) {
     final m =
@@ -130,6 +156,31 @@ class _BranchAdminViewState extends State<BranchAdminView> {
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
+    final noLocation = double.tryParse(_lat.text.trim()) == null ||
+        double.tryParse(_lng.text.trim()) == null;
+    if (noLocation && _active) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No map location'),
+          content: const Text(
+              'Without a map location the app can\'t work out delivery charges for this branch, and customers see "to be confirmed". Save anyway?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Set location')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Save anyway')),
+          ],
+        ),
+      );
+      if (go != true) {
+        if (mounted) _pickOnMap();
+        return;
+      }
+    }
+    if (!mounted) return;
     setState(() => _busy = true);
     final body = {
       'name': _name.text.trim(),
@@ -172,6 +223,17 @@ class _BranchAdminViewState extends State<BranchAdminView> {
           adminText(_hours, 'Opening hours', hint: 'e.g. 7:00 AM – 11:00 PM'),
           adminSection(
               'Map location (used for directions and delivery charges)'),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _pickOnMap,
+              icon: const Icon(Icons.map_outlined),
+              label: Text(double.tryParse(_lat.text.trim()) == null
+                  ? 'Pick on map'
+                  : 'Change on map'),
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(children: [
             Expanded(
               child: TextField(

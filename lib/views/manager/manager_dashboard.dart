@@ -219,6 +219,33 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                                       overflow: TextOverflow.ellipsis),
                                   changeRequestedChip(o),
                                   CustomerStandingBadge(o),
+                                  // Check who the customer is before claiming.
+                                  if (o['customer_id'] != null)
+                                    Align(
+                                      alignment:
+                                          AlignmentDirectional.centerStart,
+                                      child: TextButton.icon(
+                                        style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            visualDensity:
+                                                VisualDensity.compact),
+                                        onPressed: () async {
+                                          await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      CustomerHistoryView(
+                                                          customerId:
+                                                              (o['customer_id']
+                                                                      as num)
+                                                                  .toInt())));
+                                          _refreshAll();
+                                        },
+                                        icon:
+                                            const Icon(Icons.history, size: 18),
+                                        label: const Text('Customer history'),
+                                      ),
+                                    ),
                                 ]),
                             childrenPadding:
                                 const EdgeInsets.fromLTRB(16, 0, 16, 12),

@@ -161,13 +161,16 @@ void main() {
     await tester.tap(find.text('Faridullah Fish'));
     await settle(tester);
     expect(find.byType(PartnerView), findsOneWidget);
+    expect(find.text('Fresh river fish every morning since 1985.'), findsOneWidget,
+        reason: 'the description the admin wrote');
     expect(find.text('Rahu fish'), findsOneWidget);
     expect(find.text('Rs. 1200'), findsOneWidget);
     state.addCustomItem('Sugar 1 kg', 1);
     await tester.tap(find.widgetWithText(ElevatedButton, 'Add').first);
     await settle(tester);
-    expect(find.text('Added. Items from Faridullah Fish will be a separate order.'), findsOneWidget);
+    // Fish and groceries go in the same cart (one order).
     expect(state.cartGroups, [null, 3]);
+    expect(state.cartCount, 2);
     expect(tester.takeException(), isNull);
 
     // View all partners (once the "Added" message at the bottom has gone).
@@ -181,7 +184,7 @@ void main() {
     await stopApp(tester);
   });
 
-  testWidgets('cart with groceries and a partner: one order each', (tester) async {
+  testWidgets('cart with groceries and a partner: one order', (tester) async {
     final state = await startApp(tester, loggedIn: true);
     final products = (jsonDecode(fixture('products')) as List).map((p) => Product.fromJson(p)).toList();
     state.addToCart(products.firstWhere((p) => p.available && !p.hasVariants));
@@ -189,16 +192,16 @@ void main() {
     await settle(tester);
     await tester.tap(find.byTooltip('Cart'));
     await settle(tester);
-    expect(find.text('Each shop is a separate order with its own delivery charge.'), findsOneWidget);
+    expect(find.text('Items from partner shops come in the same order. Our rider collects them on the way.'), findsOneWidget);
     expect(find.text('Grozo groceries'), findsOneWidget);
     expect(find.text('Faridullah Fish'), findsOneWidget);
 
+    // Straight to checkout for everything (no "which order first").
+    requests.clear();
     await tester.tap(find.text('Proceed to checkout'));
     await settle(tester);
-    // Asked which order first.
-    await tester.tap(find.text('Faridullah Fish').last);
-    await settle(tester);
-    expect(find.text('Checkout – Faridullah Fish'), findsOneWidget);
+    expect(find.text('Checkout'), findsWidgets);
+    expect(requests.where((r) => r == 'POST /orders/quote'), isNotEmpty);
     expect(tester.takeException(), isNull);
     await stopApp(tester);
   });

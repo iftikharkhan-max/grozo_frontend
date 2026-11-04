@@ -15,6 +15,10 @@ class Partner {
   final String? nameUr;
   final String? kind;
   final String? kindUr;
+
+  /// A few lines about the partner, shown at the top of its page.
+  final String? description;
+  final String? descriptionUr;
   final String? logoUrl;
   final String? address;
   final String? phone;
@@ -27,6 +31,8 @@ class Partner {
     this.nameUr,
     this.kind,
     this.kindUr,
+    this.description,
+    this.descriptionUr,
     this.logoUrl,
     this.address,
     this.phone,
@@ -40,6 +46,8 @@ class Partner {
         nameUr: j['name_ur']?.toString(),
         kind: j['kind']?.toString(),
         kindUr: j['kind_ur']?.toString(),
+        description: j['description']?.toString(),
+        descriptionUr: j['description_ur']?.toString(),
         logoUrl: j['logo_url']?.toString(),
         address: j['address']?.toString(),
         phone: j['phone']?.toString(),
@@ -51,6 +59,10 @@ class Partner {
       lang == 'ur' && (nameUr ?? '').isNotEmpty ? nameUr! : name;
   String? displayKind(String lang) =>
       lang == 'ur' && (kindUr ?? '').isNotEmpty ? kindUr : kind;
+  String? displayDescription(String lang) =>
+      lang == 'ur' && (descriptionUr ?? '').trim().isNotEmpty
+          ? descriptionUr!.trim()
+          : ((description ?? '').trim().isEmpty ? null : description!.trim());
 }
 
 void openPartner(BuildContext context, Partner p) => Navigator.push(
@@ -331,6 +343,12 @@ class _PartnerViewState extends State<PartnerView> {
                     launchUrl(Uri(scheme: 'tel', path: p.phone!.trim())),
               ),
           ]),
+          if (p.displayDescription(lang) != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(p.displayDescription(lang)!,
+                  style: const TextStyle(fontSize: 13.5, height: 1.35)),
+            ),
           const SizedBox(height: 8),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Icon(Icons.info_outline, size: 16, color: brandPrimary),
