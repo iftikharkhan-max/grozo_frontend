@@ -56,18 +56,19 @@ void main() {
   });
 
   group('Home layout', () {
-    testWidgets('3:1 banner, then Explore Categories in two columns (Nov 2026 design)', (tester) async {
+    testWidgets('Market Shopping is bigger; Deals and Partners are compact rows', (tester) async {
       await h.startApp(tester);
+      final market = tester.getRect(find.text('Market Shopping').first);
+      final deals = tester.getRect(find.text('Deals & Discounts'));
+      final partners = tester.getRect(find.text('Order from our partners'));
+      expect(deals.top - market.top, greaterThan(140));
+      expect(partners.top, greaterThan(deals.top), reason: 'partners under the deals');
       final banner = tester.getRect(find.byType(PageView).first);
       expect(banner.width / banner.height, closeTo(3.0, 0.05), reason: 'banners are 3:1');
-      final title = tester.getRect(find.text('Explore Categories'));
-      expect(title.top, greaterThan(banner.bottom));
-      // Two cards side by side, under the title.
-      final left = tester.getRect(find.text('Vegetables'));
-      final right = tester.getRect(find.text('Fruits'));
-      expect(left.top, closeTo(right.top, 2));
-      expect(right.left, greaterThan(left.right));
-      expect(left.top, greaterThan(title.bottom));
+      final dealsBox = find.ancestor(
+          of: find.text('Deals & Discounts'),
+          matching: find.byWidgetPredicate((w) => w is SizedBox && (w.height ?? 0) >= 100 && w.height! <= 110));
+      expect(dealsBox, findsOneWidget, reason: 'deals strip stays compact');
       expect(tester.takeException(), isNull);
       await h.stopApp(tester);
     });

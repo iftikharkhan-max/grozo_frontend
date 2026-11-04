@@ -123,7 +123,7 @@ void main() {
   });
 
   group('Home', () {
-    testWidgets('"Item not in the list" is on the home page; the bottom row is gone', (tester) async {
+    testWidgets('"Item not in the list" is the first Market Shopping tile; the bottom row is gone', (tester) async {
       await h.startApp(tester);
       final notInList = find.textContaining('Item not in the list');
       expect(notInList.hitTestable(), findsOneWidget, reason: 'visible without scrolling');

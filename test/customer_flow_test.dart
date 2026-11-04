@@ -141,29 +141,24 @@ Future<void> stopApp(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('home: Explore Categories, "not in the list" and Order from our partners', (tester) async {
+  testWidgets('home shows categories, market, deals and partners', (tester) async {
     final state = await startApp(tester);
     expect(tester.takeException(), isNull);
 
-    expect(find.text('Explore Categories'), findsOneWidget);
-    // Six categories on the home page (two columns); View all lists the rest.
-    for (final name in ['Vegetables', 'Fruits', 'Dairy & Eggs', 'Bakery', 'Beverages', 'Baby Care']) {
-      expect(find.text(name), findsOneWidget, reason: name);
-    }
-    expect(find.text('Home Care'), findsNothing);
-    expect(find.text('Deals & Discounts'), findsNothing, reason: 'replaced by partners');
-    final scroll = find.descendant(of: find.byType(HomeView), matching: find.byType(Scrollable)).first;
-    await tester.scrollUntilVisible(find.text('FARIDULLAH FISH'), 200, scrollable: scroll);
+    final home = jsonDecode(fixture('home'));
+    final deals = (home['discounted_products'] as List).map((p) => p['name'] as String).toList();
+    expect(find.text('Market Shopping'), findsWidgets);
+    expect(find.text('Deals & Discounts'), findsOneWidget);
+    expect(find.text(deals.first), findsWidgets, reason: 'deal products should be visible on the home page');
+    // Partners row under the deals.
     expect(find.text('Order from our partners'), findsOneWidget);
+    expect(find.text('Faridullah Fish'), findsOneWidget);
     expect(find.text('Fish'), findsOneWidget);
-    expect(find.text('SAVOUR FOODS'), findsOneWidget);
+    expect(find.text('Savour Foods'), findsOneWidget);
     expect(find.text('Coming soon'), findsOneWidget);
 
     // A partner's page lists all its items with prices; they go in their own order.
-    // (Scrolled clear of the footer and the round Order Now button first.)
-    await tester.drag(scroll, const Offset(0, -2000));
-    await settle(tester);
-    await tester.tap(find.text('FARIDULLAH FISH'));
+    await tester.tap(find.text('Faridullah Fish'));
     await settle(tester);
     expect(find.byType(PartnerView), findsOneWidget);
     expect(find.text('Rahu fish'), findsOneWidget);
@@ -175,15 +170,14 @@ void main() {
     expect(state.cartGroups, [null, 3]);
     expect(tester.takeException(), isNull);
 
-    // View all categories.
+    // View all partners (once the "Added" message at the bottom has gone).
     Navigator.of(tester.element(find.byType(PartnerView))).pop();
+    await tester.pump(const Duration(seconds: 5));
     await settle(tester);
-    await tester.drag(scroll, const Offset(0, 3000)); // back to the top
+    final partnersRow = find.ancestor(of: find.text('Order from our partners'), matching: find.byType(Row)).first;
+    await tester.tap(find.descendant(of: partnersRow, matching: find.text('View all')));
     await settle(tester);
-    await tester.tap(find.text('View all').first);
-    await settle(tester);
-    expect(find.byType(AllCategoriesView), findsOneWidget);
-    expect(find.text('Home Care'), findsOneWidget);
+    expect(find.byType(PartnersView), findsOneWidget);
     await stopApp(tester);
   });
 
@@ -245,7 +239,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(state.isLoggedIn, isFalse);
     // Back on the store home, logged out.
-    expect(find.text('Explore Categories'), findsWidgets);
+    expect(find.text('Market Shopping'), findsWidgets);
     await stopApp(tester);
   });
 
@@ -428,12 +422,11 @@ void main() {
 
   for (final lang in ['en', 'ur']) {
     for (final dp in const [Size(360, 640), Size(360, 740), Size(393, 851), Size(412, 915)]) {
-      testWidgets('home lays out without errors at ${dp.width.toInt()}x${dp.height.toInt()} ($lang)', (tester) async {
+      testWidgets('home fits one screen without scrolling at ${dp.width.toInt()}x${dp.height.toInt()} ($lang)', (tester) async {
         final errors = <String>[];
         final previous = FlutterError.onError;
         FlutterError.onError = (d) {
           // Keep where it happened, so a failure names the widget and line.
-          // The description names the widget that overflowed and its source line.
           final text = d.toString();
           final where = RegExp(r'lib/[\w/%]+\.dart:\d+').allMatches(text).map((m) => m.group(0)).toSet();
           if (where.isEmpty) File('build/layout_error.txt').writeAsStringSync(text);
@@ -441,19 +434,23 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = previous);
         final state = await startApp(tester, lang: lang, dp: dp);
-        state.addCustomItem('Sugar', 2);
+        // A deal already in the cart shows the − qty + stepper on its card.
+        final home = jsonDecode(fixture('home'));
+        state.addToCart(Product.fromJson((home['discounted_products'] as List).first), qty: 12);
         await settle(tester);
-        // The banner and categories are on the first screen; scroll to the partners.
-        final categories = lang == 'en' ? 'Explore Categories' : 'کیٹیگریز دیکھیں';
-        final partners = lang == 'en' ? 'Order from our partners' : 'ہمارے پارٹنرز سے آرڈر کریں';
-        expect(find.text(categories).hitTestable(), findsOneWidget);
-        final homeScroll = find.descendant(of: find.byType(HomeView), matching: find.byType(Scrollable)).first;
-        await tester.scrollUntilVisible(find.text(partners), 200, scrollable: homeScroll);
-        await tester.drag(homeScroll, const Offset(0, -2000));
-        await settle(tester);
-        expect(find.text(partners).hitTestable(), findsOneWidget);
         FlutterError.onError = previous;
         expect(errors.toSet(), isEmpty, reason: 'no overflow or layout errors');
+
+        final homeScroll = find.descendant(of: find.byType(HomeView), matching: find.byType(Scrollable)).first;
+        final position = tester.state<ScrollableState>(homeScroll).position;
+        expect(position.maxScrollExtent, 0, reason: 'home content must fit the screen');
+        // The key sections are all on screen.
+        final market = lang == 'en' ? 'Market Shopping' : 'مارکیٹ سے منگوائیں';
+        final deals = lang == 'en' ? 'Deals & Discounts' : 'ڈیلز اور رعایتیں';
+        final partners = lang == 'en' ? 'Order from our partners' : 'ہمارے پارٹنرز سے آرڈر کریں';
+        expect(find.text(market).hitTestable(), findsWidgets);
+        expect(find.text(deals).hitTestable(), findsOneWidget);
+        expect(find.text(partners).hitTestable(), findsOneWidget);
         await stopApp(tester);
       });
     }
